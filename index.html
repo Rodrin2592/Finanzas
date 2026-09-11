@@ -619,12 +619,19 @@ function isCurrentBillingPeriod(expense, mes){
   // entra en el resumen de su propio mes; a partir del día siguiente, en el
   // del mes que viene. Comparar contra una fecha absoluta solo funcionaba
   // para el mes de esa fecha y mandaba el resto al resumen equivocado.
-  const cierreDay=cfg.cierre&&cfg.cierre.includes('-')
-    ?new Date(cfg.cierre+'T12:00:00').getDate()
-    :(parseInt(cfg.cierre)||0);
+  const diaDe=v=>v&&String(v).includes('-')?new Date(v+'T12:00:00').getDate():(parseInt(v)||0);
+  const cierreDay=diaDe(cfg.cierre);
   if(!cierreDay)return mk===mes;
-  const bill=new Date(expDate.getFullYear(),expDate.getMonth()+(expDate.getDate()>cierreDay?1:0),1);
-  return localMonthKey(bill)===mes;
+  // Primero, en qué resumen cae el gasto: hasta el día de cierre entra en el
+  // de su propio mes; a partir del siguiente, en el del mes que viene.
+  const resumen=expDate.getMonth()+(expDate.getDate()>cierreDay?1:0);
+  // Y ese resumen es gasto del mes en que VENCE, no del mes en que cierra.
+  // Si el día de vencimiento es anterior al de cierre, vence al mes siguiente
+  // (cierra el 24/09 y vence el 05/10 -> se paga en octubre).
+  const vtoDay=diaDe(cfg.vto);
+  const mesesHastaElPago=(vtoDay&&vtoDay<cierreDay)?1:0;
+  const pago=new Date(expDate.getFullYear(),resumen+mesesHastaElPago,1);
+  return localMonthKey(pago)===mes;
 }
 
 function currentCuota(d, refMonth){
