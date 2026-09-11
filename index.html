@@ -201,7 +201,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div class="dash-stat-val" id="dashIngresos" style="color:var(--acc)">$0</div>
           <div style="font-size:10px;color:var(--mu);margin-top:4px;font-weight:600">Sueldos + Inversiones + Reintegros</div>
           <div style="font-size:11px;color:var(--mu);margin-top:6px;font-weight:600">Ver detalle →</div>
-          <button onclick="event.stopPropagation();nuevoIngreso()" style="width:100%;margin-top:8px;background:var(--acc-dim);border:1px solid rgba(0,240,168,.25);border-radius:10px;padding:7px 4px;font-size:11px;font-weight:800;color:var(--acc);cursor:pointer;line-height:1.2">＋ Agregar ingreso</button>
         </div>
         <div class="dash-stat" onclick="showDashDetail('gastos')" style="cursor:pointer">
           <div class="dash-stat-lbl">💸 Gastos del mes</div>
@@ -853,6 +852,7 @@ window.showDashDetail=function(tipo){
       ${otros.length?`<div class="subsec" style="margin-top:10px">📌 Otros<span class="subsec-r">${fmtS(otros.reduce((a,i)=>a+i.amt,0))}</span></div>${otros.map(row).join('')}`:''}
       ${intereses>0?`<div class="subsec" style="margin-top:10px">📈 Intereses<span class="subsec-r">${fmtS(intereses)}</span></div>`:''}
       ${refs.length?`<div class="subsec" style="margin-top:10px">🔄 Reintegros<span class="subsec-r">${fmtS(refs.reduce((a,e)=>a+(e.refAmt||e.amt),0))}</span></div>`:''}
+      <button onclick="event.stopPropagation();nuevoIngreso()" style="width:100%;margin-top:12px;background:var(--acc-dim);border:1px solid rgba(0,240,168,.25);border-radius:12px;padding:11px;font-size:13px;font-weight:800;color:var(--acc);cursor:pointer">＋ Agregar ingreso</button>
     </div>`;
 
   } else {
