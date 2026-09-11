@@ -517,6 +517,8 @@ const fmtFecha=f=>{
   const p=d.slice(0,10).split('-');
   return p.length===3?p[2]+'/'+p[1]:'';
 };
+// Fecha local en formato AAAA-MM-DD (toISOString pasa por UTC y corre el día).
+const localDateISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const todayISO=new Date().toISOString().slice(0,10);
 let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard=PERFIL.visa,curDaTab='deudas',curDeudaTab='ARS';
 let curChartMonth='';
@@ -1710,9 +1712,14 @@ function saveGasto(){
   if(cardTipo==='Cuota'&&cuotaTotal>1&&!editingId){
     // Auto-generate one entry per month starting from billing period
     for(let i=1;i<=cuotaTotal;i++){
-      const d=new Date(baseDate+'T12:00:00');
-      d.setMonth(d.getMonth()+(i-1));
-      const cuotaDate=d.toISOString().slice(0,10);
+      // Sumar meses con setMonth desborda: al 31 de enero + 1 mes le da el 3
+      // de marzo, así que febrero quedaba sin cuota y marzo con dos. Se arma
+      // el mes destino y se recorta el día al último que ese mes tenga.
+      const base=new Date(baseDate+'T12:00:00');
+      const destino=new Date(base.getFullYear(),base.getMonth()+(i-1),1);
+      const ultimoDia=new Date(destino.getFullYear(),destino.getMonth()+1,0).getDate();
+      destino.setDate(Math.min(base.getDate(),ultimoDia));
+      const cuotaDate=localDateISO(destino);
       S.expenses.unshift({id:nextId++,desc,amt,cur,cat:selCat2,pay,ref:false,refPct:null,refMax:null,refAmt:null,cardTipo,cuotaNum:i,cuotaTotal,date:cuotaDate,quien:'yo'});
     }
   } else {
