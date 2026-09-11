@@ -1770,6 +1770,9 @@ function saveDeuda(){
 function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un nombre');const obj={id:editingId||nextId++,name,curr:vn('fcurr'),target:vn('ftarget')||null,cur:v('fcur')};if(editingId){const i=S.savings.findIndex(x=>x.id===editingId);if(i>=0)S.savings[i]=obj;}else{S.savings.push(obj);}save();renderAll();closeSheet();}
 
 // INIT
+// Sin adelanto hay un solo disponible, así que el título no habla del 15.
+const tituloFin=document.querySelector('[data-label="fin-mes"]');
+if(tituloFin&&!PERFIL.adelanto)tituloFin.textContent='🌕 Disponible del mes';
 const bloqueMitad=el('bloqueMitadMes');
 if(bloqueMitad&&!PERFIL.adelanto)bloqueMitad.style.display='none';
 const bloqueTotal=el('bloqueTotalMes');
