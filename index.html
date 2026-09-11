@@ -932,17 +932,25 @@ window.showDashDetail=function(tipo){
         deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div><div style="font-size:13px;font-weight:600;color:#6b7fa0">💼 ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.cat} · ${e.pay}</div></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:800;color:var(--red)">-${amt}</span>${payBtn(key)}</div></div>`;
       });
       // ── Gastos fijos del mes (Edenor, lancha, préstamos…) ──
-      const fijosMes=S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth);
+      const fijosDelMes=S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth);
+      // Los que vienen de una plantilla (Edenor, lancha…) van arriba;
+      // los sueltos (efectivo del día a día) van en su propio grupo abajo.
+      const fijosMes=fijosDelMes.filter(e=>e.fijoId);
+      const otrosMes=fijosDelMes.filter(e=>!e.fijoId);
       const fijosPend=(S.fijos||[]).filter(p=>!fijosMes.some(e=>e.fijoId===p.id));
       deudasHtml+=`<div style="font-size:12px;font-weight:800;color:var(--blu);margin:14px 0 6px">🧾 Gastos fijos</div>`;
-      fijosMes.forEach(e=>{
-        deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div style="flex:1;cursor:pointer" onclick="event.stopPropagation();editFijoMes(${e.id})"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${e.emoji||cat(e.cat).i} ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.pay||'—'}</div></div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;font-weight:800;color:var(--gld)">${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('fijo_'+e.id)}</div></div>`;
-      });
+      const filaFijo=(e)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div style="flex:1;cursor:pointer" onclick="event.stopPropagation();editFijoMes(${e.id})"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${e.emoji||cat(e.cat).i} ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.pay||'—'}</div></div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;font-weight:800;color:var(--gld)">${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('fijo_'+e.id)}</div></div>`;
+      fijosMes.forEach(e=>{deudasHtml+=filaFijo(e);});
       fijosPend.forEach(p=>{
         deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);opacity:.6"><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${p.emoji||'🧾'} ${p.desc}</div><div style="font-size:10px;color:#6b7fa0">sin cargar este mes</div></div><div style="display:flex;align-items:center;gap:6px"><button onclick="event.stopPropagation();cargarFijoDelMes(${p.id},'${thisMonth}')" style="background:var(--blu-dim);border:1px solid rgba(77,166,255,.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blu);cursor:pointer">+ Cargar</button><button onclick="event.stopPropagation();delFijoPlantilla(${p.id})" style="background:none;border:none;color:#6b7fa0;font-size:14px;cursor:pointer;padding:0 2px" title="Dejar de repetir">✕</button></div></div>`;
       });
       if(!fijosMes.length&&!fijosPend.length)deudasHtml+=`<div style="font-size:11px;color:#6b7fa0;padding:6px 0">Todavía no cargaste ninguno</div>`;
       deudasHtml+=`<button onclick="event.stopPropagation();nuevoFijo('${thisMonth}')" style="width:100%;margin-top:10px;background:transparent;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:8px;font-size:12px;font-weight:700;color:#6b7fa0;cursor:pointer">+ Agregar gasto fijo</button>`;
+      if(otrosMes.length){
+        const totOtros=otrosMes.reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
+        deudasHtml+=`<div style="font-size:12px;font-weight:800;color:var(--pur);margin:14px 0 6px;display:flex;justify-content:space-between">💵 Otros gastos (sin tarjeta)<span style="color:#6b7fa0;font-weight:700">${fmtS(totOtros)}</span></div>`;
+        otrosMes.forEach(e=>{deudasHtml+=filaFijo(e);});
+      }
       deudasHtml+='</div>';
     }
 
