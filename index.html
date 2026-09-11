@@ -12,19 +12,22 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
   --bg:#060910;--s1:#0b0f1a;--s2:#111624;--s3:#182030;
-  --acc:#00f0a8;--acc2:#00c080;--acc-dim:rgba(0,240,168,.12);
+  /* El acento se pisa por perfil desde aplicarTema(). */
+  --acc:#00f0a8;--acc2:#00c080;
+  --acc-05:rgba(0,240,168,.05);--acc-dim:rgba(0,240,168,.12);
+  --acc-15:rgba(0,240,168,.15);--acc-20:rgba(0,240,168,.2);
   --blu:#4da6ff;--blu-dim:rgba(77,166,255,.12);
   --gld:#ffb830;--gld-dim:rgba(255,184,48,.12);
   --red:#ff4f6b;--red-dim:rgba(255,79,107,.12);
   --pur:#b06cff;--pur-dim:rgba(176,108,255,.12);
   --tx:#edf2ff;--mu:#6b7fa0;--br:rgba(255,255,255,.07);
-  --glow:rgba(0,240,168,.2);--radius:20px;
+  --glow:var(--acc-20);--radius:20px;
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);}
 body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;}
 #app{display:flex;flex-direction:column;height:100vh;height:-webkit-fill-available;max-width:430px;margin:0 auto;}
 #syncBar{flex-shrink:0;display:none;align-items:center;justify-content:center;gap:8px;padding:6px 16px;font-size:11px;font-weight:600;background:var(--blu-dim);border-bottom:1px solid rgba(77,166,255,.15);color:var(--blu);transition:all .3s;letter-spacing:.3px;}
-#syncBar.ok{background:var(--acc-dim);border-color:rgba(0,240,168,.15);color:var(--acc);}
+#syncBar.ok{background:var(--acc-dim);border-color:var(--acc-15);color:var(--acc);}
 #syncBar.err{background:var(--red-dim);border-color:rgba(255,79,107,.15);color:var(--red);}
 .sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.4s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.8);}}
@@ -118,7 +121,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 .field{margin-bottom:14px;}
 .field label{font-size:10px;color:var(--mu);display:block;margin-bottom:7px;text-transform:uppercase;letter-spacing:.7px;font-weight:700;}
 .field input,.field select{width:100%;background:var(--s2);border:1.5px solid var(--br);border-radius:15px;padding:15px;color:var(--tx);font-size:16px;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none;font-weight:500;}
-.field input:focus,.field select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(0,240,168,.12);}
+.field input:focus,.field select:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-dim);}
 .field select option{background:var(--s2);}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .sh-btn{width:100%;padding:17px;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:15px;font-size:16px;font-weight:800;color:#060910;cursor:pointer;margin-top:10px;font-family:inherit;letter-spacing:-.1px;box-shadow:0 6px 20px var(--glow);transition:transform .15s,opacity .15s;}
@@ -131,12 +134,12 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 .toggle.on{background:var(--acc);}
 .toggle::after{content:"";width:24px;height:24px;background:#fff;border-radius:12px;position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 2px 6px rgba(0,0,0,.3);}
 .toggle.on::after{left:25px;}
-.ref-box{background:rgba(0,240,168,.05);border:1.5px solid rgba(0,240,168,.15);border-radius:15px;padding:14px;margin-bottom:12px;display:none;}
+.ref-box{background:var(--acc-05);border:1.5px solid var(--acc-15);border-radius:15px;padding:14px;margin-bottom:12px;display:none;}
 .ref-calc{font-size:13px;color:var(--acc);margin-top:8px;text-align:center;font-weight:800;min-height:20px;}
 .card-extra{background:rgba(77,166,255,.05);border:1.5px solid rgba(77,166,255,.15);border-radius:15px;padding:14px;margin-bottom:12px;display:none;}
 .act-btn{flex:1;padding:10px;background:var(--s2);border:1px solid var(--br);border-radius:12px;color:var(--mu);font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;transition:all .15s;}
 .act-btn:active{opacity:.7;}
-.act-btn.g{background:var(--acc-dim);border-color:rgba(0,240,168,.2);color:var(--acc);}
+.act-btn.g{background:var(--acc-dim);border-color:var(--acc-20);color:var(--acc);}
 .cfg-btn{font-size:12px;color:var(--mu);background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:7px 13px;cursor:pointer;font-family:inherit;font-weight:700;}
 .dash-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;margin-top:4px;}
 .dash-stat{background:linear-gradient(135deg,var(--s1) 0%,var(--s2) 100%);border-radius:var(--radius);padding:18px;border:1px solid var(--br);box-shadow:0 6px 24px rgba(0,0,0,.3);transition:transform .15s,box-shadow .15s;}
@@ -314,9 +317,28 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
 // tarjetas.
+// Cada perfil pinta la app con su acento. El resto de la paleta (rojo,
+// dorado, azul) no cambia: son los colores de gasto, aviso e info.
+const TEMAS={
+  verde:{acc:'#00f0a8',acc2:'#00c080',rgb:'0,240,168'},
+  rosa:{acc:'#fa7fd2',acc2:'#e055b4',rgb:'250,127,210',
+        bg:'#0f0810',s1:'#170d18',s2:'#211325',s3:'#2d1b32',
+        tx:'#f8eef6',mu:'#a0819b'},
+};
+function aplicarTema(nombre){
+  const t=TEMAS[nombre]||TEMAS.verde;
+  const r=document.documentElement.style;
+  r.setProperty('--acc',t.acc);
+  r.setProperty('--acc2',t.acc2);
+  r.setProperty('--acc-05','rgba('+t.rgb+',.05)');
+  r.setProperty('--acc-dim','rgba('+t.rgb+',.12)');
+  r.setProperty('--acc-15','rgba('+t.rgb+',.15)');
+  r.setProperty('--acc-20','rgba('+t.rgb+',.2)');
+  ['bg','s1','s2','s3','tx','mu'].forEach(k=>{if(t[k])r.setProperty('--'+k,t[k]);});
+}
 const PERFILES={
-  nach:{id:'nach',nombre:'Nach',emoji:'👨',dbPath:'/finanzas_hogar',visa:'VISA Nach',master:'MASTERCARD Nach',adelanto:true},
-  euge:{id:'euge',nombre:'Euge',emoji:'👩',dbPath:'/finanzas_euge',visa:'VISA Euge',master:'MASTERCARD Euge',adelanto:false},
+  nach:{id:'nach',nombre:'Nach',emoji:'👨',dbPath:'/finanzas_hogar',visa:'VISA Nach',master:'MASTERCARD Nach',adelanto:true,tema:'verde'},
+  euge:{id:'euge',nombre:'Euge',emoji:'👩',dbPath:'/finanzas_euge',visa:'VISA Euge',master:'MASTERCARD Euge',adelanto:false,tema:'rosa'},
 };
 // El perfil sale del link: con ?p=euge la app abre ese perfil y queda fija,
 // sin selector. Sin parámetro arranca en el perfil propio y muestra el chip
@@ -778,7 +800,7 @@ window.showDashDetail=function(tipo){
 
   const payBtn=(key)=>{
     const isPaid=S._payStatus[statusKey][key]||false;
-    return `<button onclick="event.stopPropagation();togglePayStatus('${statusKey}','${key}',this)" style="background:${isPaid?'var(--acc-dim)':'var(--gld-dim)'};border:1px solid ${isPaid?'rgba(0,240,168,.2)':'rgba(255,184,48,.2)'};border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;color:${isPaid?'var(--acc)':'var(--gld)'};cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">${isPaid?'✓ Abonado':'⏳ Pendiente'}</button>`;
+    return `<button onclick="event.stopPropagation();togglePayStatus('${statusKey}','${key}',this)" style="background:${isPaid?'var(--acc-dim)':'var(--gld-dim)'};border:1px solid ${isPaid?'var(--acc-20)':'rgba(255,184,48,.2)'};border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;color:${isPaid?'var(--acc)':'var(--gld)'};cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">${isPaid?'✓ Abonado':'⏳ Pendiente'}</button>`;
   };
 
   if(tipo==='ingresos'){
@@ -948,7 +970,7 @@ function togglePayStatus(monthKey,payMethod,btn){
   btn.textContent=isPaid?'✓ Abonado':'⏳ Pendiente';
   btn.style.color=isPaid?'var(--acc)':'var(--gld)';
   btn.style.background=isPaid?'var(--acc-dim)':'var(--gld-dim)';
-  btn.style.borderColor=isPaid?'rgba(0,240,168,.2)':'rgba(255,184,48,.2)';
+  btn.style.borderColor=isPaid?'var(--acc-20)':'rgba(255,184,48,.2)';
   save();
   // Update disponible transitorio live
   renderHome();
@@ -1057,7 +1079,7 @@ function renderGastos(){
   </div>`;
 
   // OPEN PERIOD
-  const openSummary=`<div style="background:rgba(0,240,168,.05);border:1px solid rgba(0,240,168,.15);border-radius:18px;padding:16px;margin-bottom:12px">
+  const openSummary=`<div style="background:var(--acc-05);border:1px solid var(--acc-15);border-radius:18px;padding:16px;margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-size:12px;font-weight:800;color:var(--acc)">✏️ ${periodBLabel}</div>
       <div style="background:var(--acc-dim);color:var(--acc);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">EN CURSO</div>
@@ -1151,7 +1173,7 @@ function renderGraficos(){
   if(barChartInst){barChartInst.destroy();barChartInst=null;}
   // Custom scrollable bar chart with Y scale
   const datasets=[
-    {label:'Ing. '+PERFIL.nombre,data:nachInc,color:'#00f0a8'},
+    {label:'Ing. '+PERFIL.nombre,data:nachInc,color:'var(--acc)'},
     {label:'Gas. '+PERFIL.nombre,data:nachExp,color:'#ff4f6b'},
   ];
   const allVals=[...nachInc,...nachExp].filter(v=>v>0);
@@ -1274,7 +1296,7 @@ function renderRulo(){
     const neto=r.buy>0&&r.sell>0?((r.sell*(1-com))/(r.buy*(1+com))-1)*100:0;
     const convieneCol=neto>2?'var(--acc)':neto>0?'var(--gld)':'var(--red)';
     const convieneStr=neto>2?'💰 Conviene':neto>0?'⚡ Marginal':'❌ No conviene';
-    return`<div class="card" style="margin-bottom:10px;${r.prohibido?'border-color:rgba(255,79,107,.3)':neto>1?'border-color:rgba(0,240,168,.2)':''}">
+    return`<div class="card" style="margin-bottom:10px;${r.prohibido?'border-color:rgba(255,79,107,.3)':neto>1?'border-color:var(--acc-20)':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div><div style="font-size:14px;font-weight:800">${r.n}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">${r.d}</div></div>
         <div style="text-align:right"><div style="font-size:18px;font-weight:900;color:${convieneCol}">${neto>0?'+':''}${neto.toFixed(1)}%</div><div style="font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase">neto c/comis.</div></div>
@@ -1510,7 +1532,7 @@ document.addEventListener('touchstart',function(e){
 },{passive:true});
 function showBarTip(label,fmtVal,raw){
   const tip=document.getElementById('barTipPanel');if(!tip)return;
-  const col=label.includes('Ing')?'#00f0a8':'#ff4f6b';
+  const col=label.includes('Ing')?'var(--acc)':'#ff4f6b';
   tip.style.display='block';tip.style.color=col;
   tip.textContent=`${label}: $${Math.round(raw).toLocaleString('es-AR')}`;
   clearTimeout(tip._t);tip._t=setTimeout(()=>{tip.style.display='none';},3000);
@@ -1770,6 +1792,7 @@ function saveDeuda(){
 function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un nombre');const obj={id:editingId||nextId++,name,curr:vn('fcurr'),target:vn('ftarget')||null,cur:v('fcur')};if(editingId){const i=S.savings.findIndex(x=>x.id===editingId);if(i>=0)S.savings[i]=obj;}else{S.savings.push(obj);}save();renderAll();closeSheet();}
 
 // INIT
+aplicarTema(PERFIL.tema);
 // Sin adelanto hay un solo disponible, así que el título no habla del 15.
 const tituloFin=document.querySelector('[data-label="fin-mes"]');
 if(tituloFin&&!PERFIL.adelanto)tituloFin.textContent='🌕 Disponible del mes';
