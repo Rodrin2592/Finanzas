@@ -421,7 +421,10 @@ const ECATS=[
 const INGRESO_TIPOS=['Sueldo','Freelance','Bono','Alquiler cobrado','Venta','Otro ingreso'];
 const PAYS=['Efectivo','Débito',PERFIL.visa,PERFIL.master,'Transferencia','Mercado Pago'];
 const CARDS=[PERFIL.visa,PERFIL.master];
-const CARD_TIPOS=['Débito automático','Cuota','Gasto único'];
+// El primero es el que queda seleccionado al abrir el formulario: con
+// 'Débito automático' adelante, los campos de cuota nunca se veían y los
+// gastos se guardaban como débito sin haberlo elegido.
+const CARD_TIPOS=['Gasto único','Cuota','Débito automático'];
 const ITYPES_ARS=['Plazo Fijo','Fondo Común (FCI)','Acciones / Cedears','Cripto (ARS)','Bonos','Otro'];
 const ITYPES_USD=['Dólares Físicos','Cripto (USD)','Acciones Ext.','CEDEAR (USD)','Otro'];
 const DTYPES=['Préstamo Personal','Cuota Auto','Cuota Departamento','Alquiler','Lancha','Tarjetas','Auto','Deuda USD','Deuda no en curso','Otro'];
