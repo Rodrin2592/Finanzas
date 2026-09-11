@@ -173,29 +173,17 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
         <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
           <div data-label="fin-mes" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🌕 Disponible fin de mes</div>
           <div id="dashDisponible" style="font-size:28px;font-weight:900;letter-spacing:-1px;margin-bottom:4px">$0</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-            <span style="font-size:11px;color:#6b7fa0;font-weight:600">💵 Disponible ahora:</span>
-            <span id="dashDispTransitorio" style="font-size:13px;font-weight:800;color:var(--blu)">$0</span>
-          </div>
-          <div style="height:4px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:6px">
-            <div id="dashProgressBar" style="height:100%;border-radius:4px;transition:width .6s;width:0%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600">
-            <div style="color:#6b7fa0">Gastado: <span id="dashPct" style="color:#edf2ff">0%</span></div>
-            <div style="color:#6b7fa0;font-size:10px" id="dashIngTotal">$0</div>
-          </div>
         </div>
         <!-- Período 2: Mitad de mes (solo si el perfil cobra un adelanto) -->
         <div id="bloqueMitadMes">
           <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px"><span data-label="mitad-mes">🌓 Gastos a pagar el 15</span></div>
           <div id="dashDisponibleMitad" style="font-size:22px;font-weight:900;letter-spacing:-1px;margin-bottom:8px">$0</div>
-          <div style="height:4px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:6px">
-            <div id="dashProgressMitad" style="height:100%;border-radius:4px;transition:width .6s;width:0%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600">
-            <div style="color:#6b7fa0">del adelanto: <span id="dashIngMitad" style="color:#edf2ff">$0</span></div>
-            <div style="color:#6b7fa0">Usado: <span id="dashPctMitad" style="color:#edf2ff">0%</span></div>
-          </div>
+        </div>
+        <!-- Período 3: los dos anteriores juntos -->
+        <div id="bloqueTotalMes" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07)">
+          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">💰 Disponible del mes completo</div>
+          <div id="dashDisponibleTotal" style="font-size:26px;font-weight:900;letter-spacing:-1px;margin-bottom:5px">$0</div>
+          <div id="dashTotalDetalle" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
         </div>
       </div>
       <div class="dash-stats">
@@ -702,8 +690,6 @@ function renderHome(){
   // ── DISPONIBLE FIN DE MES ──
   // Cada mes se mide solo: no se suma ni se resta lo que sobró o faltó antes.
   const dispFin=totalIngresos-totalGastos-invMes;
-  const baseTotal=totalIngresos;
-  const pctFin=baseTotal>0?Math.min(100,Math.round((totalGastos+invMes)/baseTotal*100)):0;
 
   // ── MITAD DE MES: el adelanto del 15 contra la MASTERCARD del perfil ──
   // Solo ingresos del thisMonth con día ≤ 15 y quien='yo'
@@ -723,81 +709,42 @@ function renderHome(){
   const totalMC=gasMitad+debitosMC;
   // El adelanto se mide contra la MASTERCARD de este mes y nada más:
   // no se completa con lo que haya sobrado en el disponible de fin de mes.
-  const deficit=totalMC-ingAdelanto;
-  const faltaPlata=deficit>0;
-  const baseMitad=ingAdelanto;
-  const pctMitad=baseMitad>0?Math.min(100,Math.round(totalMC/baseMitad*100)):totalMC>0?100:0;
+  // Disponible del 15: lo que cobraste ese día menos el resumen de la MASTERCARD.
+  const saldoMitad=ingAdelanto-totalMC;
 
-  // ── DISPONIBLE TRANSITORIO (solo lo ya abonado) ──
   if(!S._payStatus)S._payStatus={};
   if(!S._payStatus[thisMonth])S._payStatus[thisMonth]={};
-  const ps=S._payStatus[thisMonth];
-  // Calcular cuánto ya se pagó (items marcados como Abonado)
-  let yaAbonado=0;
-  // Tarjetas abonadas
-  const allItems2=S.expenses.filter(e=>{
-    if(e.ref)return false;
-    if(PERFIL.adelanto&&e.pay===PERFIL.master)return false; // la paga el adelanto del 15
-    const mk=itemMonthKey(e);
-    const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD')||e.pay.includes('MC '));
-    if(isCard) return isCurrentBillingPeriod(e,thisMonth);
-    return mk===thisMonth;
-  });
-  const payGroupsCalc={};
-  allItems2.forEach(e=>{const p=e.pay||'Sin método';if(!payGroupsCalc[p])payGroupsCalc[p]=[];payGroupsCalc[p].push(e);});
-  Object.keys(payGroupsCalc).forEach(pay=>{
-    if(ps['card_'+pay])yaAbonado+=payGroupsCalc[pay].reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-  });
-  // Deudas abonadas
-  S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).forEach(d=>{
-    if(ps['deuda_'+d.id])yaAbonado+=(d.cur==='USD'?d.quota*rate:d.quota);
-  });
-  // Gastos compartidos abonados
-  S.expenses.filter(e=>e.shared&&!e.ref&&(itemMonthKey(e)===thisMonth)).forEach(e=>{
-    if(ps['shared_'+e.id])yaAbonado+=(e.cur==='USD'?e.amt*rate:e.amt);
-  });
-  S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth).forEach(e=>{
-    if(ps['fijo_'+e.id])yaAbonado+=(e.cur==='USD'?e.amt*rate:e.amt);
-  });
-  const dispTransitorio=totalIngresos-yaAbonado;
 
   // UI fin de mes
   const isNeg=dispFin<0;
-  const dispColor=isNeg?'var(--red)':pctFin>80?'var(--gld)':'var(--acc)';
+  const dispColor=isNeg?'var(--red)':'var(--acc)';
   const dispEl=el('dashDisponible');
   if(dispEl){dispEl.textContent=(isNeg?'−':'')+fmtS(Math.abs(dispFin));dispEl.style.color=dispColor;}
-  const barEl=el('dashProgressBar');if(barEl){barEl.style.width=Math.min(100,pctFin)+'%';barEl.style.background=isNeg?'#ff4f6b':pctFin>80?'#ffb830':'#00f0a8';}
-  const pctEl=el('dashPct');if(pctEl)pctEl.textContent=pctFin+'%';
-  const ingTotEl=el('dashIngTotal');
-  let ingLabel=fmtS(totalIngresos);
-  if(invMes>0)ingLabel+=' − '+fmtS(invMes)+' inv.';
-  if(ingTotEl)ingTotEl.textContent=ingLabel;
-  // Disponible transitorio
-  const dispTransEl=el('dashDispTransitorio');
-  if(dispTransEl){
-    const isNegT=dispTransitorio<0;
-    dispTransEl.textContent=(isNegT?'−':'')+fmtS(Math.abs(dispTransitorio));
-    dispTransEl.style.color=isNegT?'var(--red)':'var(--blu)';
-  }
 
   // UI mitad de mes
-  const isNegMitad=ingAdelanto<totalMC;
-  const colM=isNegMitad?'var(--red)':pctMitad>100?'var(--gld)':'var(--blu)';
   const mitadEl=el('dashDisponibleMitad');
   if(mitadEl){
     mitadEl.textContent=(ingAdelanto<totalMC?'−':'')+fmtS(Math.abs(ingAdelanto-totalMC));
     mitadEl.style.color=ingAdelanto>=totalMC?'var(--acc)':'var(--red)';
   }
-  const barM=el('dashProgressMitad');if(barM){barM.style.width=Math.min(100,pctMitad)+'%';barM.style.background=isNegMitad?'#ff4f6b':pctMitad>80?'#ffb830':'#4da6ff';}
-  const pctMEl=el('dashPctMitad');if(pctMEl)pctMEl.textContent=pctMitad+'%';
-  const ingMEl=el('dashIngMitad');
-  if(ingMEl){
-    let mitadLabel=`Adelanto: ${fmtS(ingAdelanto)}`;
-    if(faltaPlata)mitadLabel+=` · ❌ Faltan ${fmtS(deficit)}`;
-    ingMEl.textContent=mitadLabel;
-  }
 
-  el('dashIngresos').textContent=fmtS(totalIngresos);
+  // Los dos disponibles juntos: lo que te queda del mes completo.
+  const dispTotal=dispFin+(PERFIL.adelanto?saldoMitad:0);
+  const totalEl=el('dashDisponibleTotal');
+  if(totalEl){
+    const isNegTot=dispTotal<0;
+    totalEl.textContent=(isNegTot?'−':'')+fmtS(Math.abs(dispTotal));
+    totalEl.style.color=isNegTot?'var(--red)':'var(--acc)';
+  }
+  const detEl=el('dashTotalDetalle');
+  if(detEl){
+    detEl.textContent=PERFIL.adelanto
+      ?`Fin de mes ${(dispFin<0?'−':'')+fmtS(Math.abs(dispFin))} · Mitad de mes ${(saldoMitad<0?'−':'')+fmtS(Math.abs(saldoMitad))}`
+      :'';
+  }
+  // El recuadro de arriba muestra TODO lo que entró en el mes,
+  // incluido el adelanto del 15, que no suma al disponible de fin de mes.
+  el('dashIngresos').textContent=fmtS(totalIngresos+(PERFIL.adelanto?ingAdelanto:0));
   el('dashGastos').textContent=fmtS(totalGastos+invMes);
   el('dashDetail').style.display='none';
   dashDetailOpen=null;
@@ -1851,6 +1798,8 @@ function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un n
 // INIT
 const bloqueMitad=el('bloqueMitadMes');
 if(bloqueMitad&&!PERFIL.adelanto)bloqueMitad.style.display='none';
+const bloqueTotal=el('bloqueTotalMes');
+if(bloqueTotal&&!PERFIL.adelanto)bloqueTotal.style.display='none';
 const chipPerfil=el('perfilChip');
 if(chipPerfil){
   // Con link directo no se ofrece cambiar de perfil
