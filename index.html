@@ -201,6 +201,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div class="dash-stat-val" id="dashIngresos" style="color:var(--acc)">$0</div>
           <div style="font-size:10px;color:var(--mu);margin-top:4px;font-weight:600">Sueldos + Inversiones + Reintegros</div>
           <div style="font-size:11px;color:var(--mu);margin-top:6px;font-weight:600">Ver detalle →</div>
+          <button onclick="event.stopPropagation();nuevoIngreso()" style="width:100%;margin-top:8px;background:var(--acc-dim);border:1px solid rgba(0,240,168,.25);border-radius:10px;padding:7px 4px;font-size:11px;font-weight:800;color:var(--acc);cursor:pointer;line-height:1.2">＋ Agregar ingreso</button>
         </div>
         <div class="dash-stat" onclick="showDashDetail('gastos')" style="cursor:pointer">
           <div class="dash-stat-lbl">💸 Gastos del mes</div>
@@ -209,7 +210,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div style="font-size:11px;color:var(--mu);margin-top:6px;font-weight:600">Ver detalle →</div>
         </div>
       </div>
-      <button onclick="nuevoIngreso()" style="width:100%;margin-bottom:14px;background:var(--acc-dim);border:1px solid rgba(0,240,168,.25);border-radius:14px;padding:13px;font-size:13px;font-weight:800;color:var(--acc);cursor:pointer;letter-spacing:.2px">＋ Agregar ingreso</button>
       <!-- Detalle expandible -->
       <div id="dashDetail" style="display:none;margin-bottom:14px"></div>
       <!-- Gráfico 1: Ingresos vs Gastos (Nach) -->
