@@ -423,7 +423,7 @@ const ITYPES_ARS=['Plazo Fijo','Fondo Común (FCI)','Acciones / Cedears','Cripto
 const ITYPES_USD=['Dólares Físicos','Cripto (USD)','Acciones Ext.','CEDEAR (USD)','Otro'];
 const DTYPES=['Préstamo Personal','Cuota Auto','Cuota Departamento','Alquiler','Lancha','Tarjetas','Auto','Deuda USD','Deuda no en curso','Otro'];
 
-const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],saldoHistorial:{},cardCfg:{'VISA Nach':{cierre:'',vto:''},'MASTERCARD Nach':{cierre:'',vto:''},'VISA Adic Nach':{cierre:'',vto:''},'MC Adic Nach':{cierre:'',vto:''}}};
+const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],fijos:[],saldoHistorial:{},cardCfg:{'VISA Nach':{cierre:'',vto:''},'MASTERCARD Nach':{cierre:'',vto:''},'VISA Adic Nach':{cierre:'',vto:''},'MC Adic Nach':{cierre:'',vto:''}}};
 let S = JSON.parse(JSON.stringify(DEF));
 let syncing = false;
 
@@ -434,6 +434,7 @@ async function loadFromCloud() {
     if(cached){
       S={...DEF,...JSON.parse(cached)};
       S.debitos=S.debitos||[];
+      S.fijos=S.fijos||[];
       S.cardCfg={...DEF.cardCfg,...(S.cardCfg||{})};
       renderAll();
     }
@@ -447,7 +448,7 @@ async function loadFromCloud() {
   } else if(data===null){
     setSyncBar('ok','Conectado ✓');
   } else {
-    S={...DEF,...data,debitos:data.debitos||[],cardCfg:{...DEF.cardCfg,...(data.cardCfg||{})}};
+    S={...DEF,...data,debitos:data.debitos||[],fijos:data.fijos||[],cardCfg:{...DEF.cardCfg,...(data.cardCfg||{})}};
     // Save to cache immediately so next load is instant
     try{localStorage.setItem('mf_bak',JSON.stringify(S));}catch(e){}
     setSyncBar('ok','Sincronizado ✓');
@@ -489,7 +490,7 @@ setInterval(async () => {
     const localStr = JSON.stringify(S);
     if (remoteStr !== localStr) {
       if(_isSaving)return; // double check
-      S = {...DEF,...data,debitos:data.debitos||[],cardCfg:{...DEF.cardCfg,...(data.cardCfg||{})}};
+      S = {...DEF,...data,debitos:data.debitos||[],fijos:data.fijos||[],cardCfg:{...DEF.cardCfg,...(data.cardCfg||{})}};
       renderAll();
       setSyncBar('ok','Sincronizado ✓');
       el('syncBar').style.display='flex';
@@ -793,6 +794,9 @@ function renderHome(){
   S.expenses.filter(e=>e.shared&&!e.ref&&(itemMonthKey(e)===earnMonth||itemMonthKey(e)===thisMonth)).forEach(e=>{
     if(ps['shared_'+e.id])yaAbonado+=(e.cur==='USD'?e.amt*rate:e.amt);
   });
+  S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth).forEach(e=>{
+    if(ps['fijo_'+e.id])yaAbonado+=(e.cur==='USD'?e.amt*rate:e.amt);
+  });
   const dispTransitorio=totalIngresos-yaAbonado+arrastre;
 
   // UI fin de mes
@@ -917,7 +921,7 @@ window.showDashDetail=function(tipo){
     const allDeudas=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1));
     const sharedExpenses=S.expenses.filter(e=>e.shared&&!e.ref&&(itemMonthKey(e)===earnMonth||itemMonthKey(e)===thisMonth));
     let deudasHtml='';
-    if(allDeudas.length||sharedExpenses.length){
+    {
       deudasHtml=`<div style="background:var(--s2);border-radius:16px;padding:14px;border:1px solid rgba(255,255,255,.07);margin-bottom:10px"><div style="font-size:12px;font-weight:800;color:var(--gld);margin-bottom:8px">👥 Compromisos compartidos</div>`;
       allDeudas.forEach(dd=>{
         const key='deuda_'+dd.id;const isPaid=S._payStatus[statusKey][key]||false;const amt=dd.cur==='USD'?fmtU(dd.quota):fmtS(dd.quota);
@@ -927,6 +931,18 @@ window.showDashDetail=function(tipo){
         const key='shared_'+e.id;const isPaid=S._payStatus[statusKey][key]||false;const amt=e.cur==='USD'?fmtU(e.amt):fmtS(e.amt);
         deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div><div style="font-size:13px;font-weight:600;color:#6b7fa0">💼 ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.cat} · ${e.pay}</div></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:800;color:var(--red)">-${amt}</span>${payBtn(key)}</div></div>`;
       });
+      // ── Gastos fijos del mes (Edenor, lancha, préstamos…) ──
+      const fijosMes=S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth);
+      const fijosPend=(S.fijos||[]).filter(p=>!fijosMes.some(e=>e.fijoId===p.id));
+      deudasHtml+=`<div style="font-size:12px;font-weight:800;color:var(--blu);margin:14px 0 6px">🧾 Gastos fijos</div>`;
+      fijosMes.forEach(e=>{
+        deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div style="flex:1;cursor:pointer" onclick="event.stopPropagation();editFijoMes(${e.id})"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${e.emoji||cat(e.cat).i} ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.pay||'—'}</div></div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;font-weight:800;color:var(--gld)">${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('fijo_'+e.id)}</div></div>`;
+      });
+      fijosPend.forEach(p=>{
+        deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);opacity:.6"><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${p.emoji||'🧾'} ${p.desc}</div><div style="font-size:10px;color:#6b7fa0">sin cargar este mes</div></div><div style="display:flex;align-items:center;gap:6px"><button onclick="event.stopPropagation();cargarFijoDelMes(${p.id},'${thisMonth}')" style="background:var(--blu-dim);border:1px solid rgba(77,166,255,.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blu);cursor:pointer">+ Cargar</button><button onclick="event.stopPropagation();delFijoPlantilla(${p.id})" style="background:none;border:none;color:#6b7fa0;font-size:14px;cursor:pointer;padding:0 2px" title="Dejar de repetir">✕</button></div></div>`;
+      });
+      if(!fijosMes.length&&!fijosPend.length)deudasHtml+=`<div style="font-size:11px;color:#6b7fa0;padding:6px 0">Todavía no cargaste ninguno</div>`;
+      deudasHtml+=`<button onclick="event.stopPropagation();nuevoFijo('${thisMonth}')" style="width:100%;margin-top:10px;background:transparent;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:8px;font-size:12px;font-weight:700;color:#6b7fa0;cursor:pointer">+ Agregar gasto fijo</button>`;
       deudasHtml+='</div>';
     }
 
@@ -989,6 +1005,57 @@ window.showDashDetail=function(tipo){
     d.innerHTML=html;
   }
 }
+// ── GASTOS FIJOS ─────────────────────────────────────────────────────
+// Una plantilla (Edenor, lancha, préstamo) se repite todos los meses. Al
+// cargarla se crea un gasto normal con fijo:true, así sigue contando en los
+// totales, los gráficos y el detalle por método de pago como cualquier otro.
+var fijoMesDestino='';
+function nuevoFijo(mes){
+  editingId=null;editingType='fijo';fijoMesDestino=mes;
+  el('shTitle').textContent='Nuevo gasto fijo';
+  el('shBody').innerHTML=forms.fijo({date:mes+'-01'});
+  el('overlay').classList.add('open');
+}
+function cargarFijoDelMes(plantillaId,mes){
+  const p=(S.fijos||[]).find(x=>x.id===plantillaId);if(!p)return;
+  editingId=null;editingType='fijo';fijoMesDestino=mes;
+  el('shTitle').textContent='Cargar '+p.desc;
+  el('shBody').innerHTML=forms.fijo({desc:p.desc,emoji:p.emoji,cat:p.cat,pay:p.pay,fijoId:p.id,date:mes+'-01'});
+  el('overlay').classList.add('open');
+}
+function editFijoMes(expId){
+  const e=S.expenses.find(x=>x.id===expId);if(!e)return;
+  editingId=expId;editingType='fijo';fijoMesDestino=itemMonthKey(e);
+  el('shTitle').textContent='Editar '+e.desc;
+  el('shBody').innerHTML=forms.fijo(e);
+  el('overlay').classList.add('open');
+}
+function saveFijo(){
+  const desc=v('ffdesc');if(!desc)return alert('Poné un nombre');
+  const amt=parseFloat(v('ffamt'))||0;
+  const pay=v('ffpay')||'Efectivo';
+  const catN=v('ffcat')||'Hogar';
+  const emoji=v('ffemoji')||'';
+  const date=v('ffdate')||(fijoMesDestino+'-01');
+  const pid=el('ffFijoId')?.value?parseInt(el('ffFijoId').value):null;
+  if(editingId){
+    const e=S.expenses.find(x=>x.id===editingId);
+    if(e)Object.assign(e,{desc,amt,pay,cat:catN,emoji,date});
+  } else {
+    let plantillaId=pid;
+    if(!plantillaId&&el('ffrepetir')?.checked){
+      S.fijos=S.fijos||[];plantillaId=nextId++;
+      S.fijos.push({id:plantillaId,desc,emoji,cat:catN,pay});
+    }
+    S.expenses.unshift({id:nextId++,desc,amt,cur:'ARS',cat:catN,pay,ref:false,fijo:true,fijoId:plantillaId||null,emoji,date,quien:'yo'});
+  }
+  save();closeSheet();renderAll();
+}
+function delFijoPlantilla(id){
+  if(!confirm('¿Dejar de repetir este gasto fijo? Los meses ya cargados no se tocan.'))return;
+  S.fijos=(S.fijos||[]).filter(x=>x.id!==id);save();renderAll();
+}
+
 function togglePayStatus(monthKey,payMethod,btn){
   if(!S._payStatus)S._payStatus={};
   if(!S._payStatus[monthKey])S._payStatus[monthKey]={};
@@ -1746,6 +1813,7 @@ function onDeudaTipoChange(){
 
 var backBtn=`<button class="back-btn" onclick="closeSheet()">← Volver</button>`;
 var forms={
+  fijo:(pre)=>`<div class="field"><label>Nombre</label><input type="text" id="ffdesc" placeholder="Ej: Edenor" value="${pre?.desc||''}"></div><div class="row2"><div class="field"><label>Monto ($)</label><input type="number" id="ffamt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal"></div><div class="field"><label>Emoji</label><input type="text" id="ffemoji" placeholder="⚡" value="${pre?.emoji||''}"></div></div><div class="row2"><div class="field"><label>Categoría</label><select id="ffcat">${ECATS.map(c=>`<option${pre?.cat===c.n?' selected':''}>${c.n}</option>`).join('')}</select></div><div class="field"><label>Método de pago</label><select id="ffpay">${PAYS.map(p=>`<option${pre?.pay===p?' selected':''}>${p}</option>`).join('')}</select></div></div><div class="field"><label>Fecha</label><input type="date" id="ffdate" value="${pre?.date||todayISO}"></div><input type="hidden" id="ffFijoId" value="${pre?.fijoId||''}">${(!pre?.fijoId&&!pre?.id)?'<div class="toggle-row"><span class="toggle-lbl">Repetir todos los meses</span><input type="checkbox" id="ffrepetir" checked></div>':''}<button class="sh-btn" onclick="saveFijo()">Guardar</button>${backBtn}`,
   ingreso:(pre)=>`<div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Sueldo abril" value="${pre?.desc||''}"></div><div class="row2"><div class="field"><label>Tipo</label><select id="ftipo">${INGRESO_TIPOS.map(t=>`<option${pre?.tipo===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="field"><label>Monto ($)</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal"></div></div><div class="field"><label>Fecha</label><input type="date" id="fdate" value="${pre?.date||todayISO}"></div><button class="sh-btn" onclick="saveIngreso()">Guardar</button>${backBtn}`,
   gasto:(preCard,pre)=>`<div class="toggle-row"><span class="toggle-lbl">Es un reintegro</span><div class="toggle" id="refToggle" onclick="toggleRef()"></div></div><div class="toggle-row" style="margin-bottom:8px"><span class="toggle-lbl">💼 Gasto compartido</span><div class="toggle${pre?.shared?' on':''}" id="sharedToggle" onclick="this.classList.toggle('on')"></div></div><div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Almuerzo..." value="${pre?.desc||''}"></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal" oninput="updateRefCalc()"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS"${pre?.cur!=='USD'?' selected':''}>ARS</option><option value="USD"${pre?.cur==='USD'?' selected':''}>USD</option></select></div></div><div class="field"><label>Método de pago</label><select id="fpay" onchange="onPayChange()">${CARDS.map(p=>`<option${(preCard===p||pre?.pay===p)?' selected':''}>${p}</option>`).join('')}</select></div><div id="cardClosedWarn" style="display:none;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.3);border-radius:12px;padding:10px 12px;font-size:12px;color:#ffb830;font-weight:600;margin-bottom:10px"></div><div class="card-extra" id="cardExtra" style="display:${(preCard||pre?.cardTipo)?'block':'none'}"><div class="field" style="margin-bottom:8px"><label>Tipo de cargo</label><select id="fcardTipo" onchange="onCardTipoChange()">${CARD_TIPOS.map(o=>`<option${pre?.cardTipo===o?' selected':''}>${o}</option>`).join('')}</select></div><div class="row2" id="cuotaFields" style="display:${pre?.cardTipo==='Cuota'?'grid':'none'}"><div class="field" style="margin-bottom:0"><label>Cuota N°</label><input type="number" id="fcuotaNum" value="${pre?.cuotaNum||1}" inputmode="numeric"></div><div class="field" style="margin-bottom:0"><label>Total cuotas</label><input type="number" id="fcuotaTotal" value="${pre?.cuotaTotal||1}" inputmode="numeric"></div></div></div><div class="ref-box" id="refBox"><div class="row2"><div class="field" style="margin-bottom:8px"><label>% reintegro</label><input type="number" id="frefPct" placeholder="40" value="${pre?.refPct||''}" inputmode="decimal" oninput="updateRefCalc()"></div><div class="field" style="margin-bottom:8px"><label>Tope máximo</label><input type="number" id="frefMax" placeholder="Sin tope" value="${pre?.refMax||''}" inputmode="decimal" oninput="updateRefCalc()"></div></div><div class="ref-calc" id="refCalc"></div></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><div class="field"><label>Fecha</label><input type="date" id="fdate" value="${pre?.date||todayISO}"></div><button class="sh-btn" onclick="saveGasto()">Guardar</button>${backBtn}`,
   inversion:(pre)=>`<div class="field"><label>Nombre</label><input type="text" id="fname" placeholder="Ej: Compra Dólares" value="${pre?.name||''}"></div><div class="row2"><div class="field"><label>Moneda</label><select id="fcur" onchange="updInvTypes()"><option${pre?.cur!=='USD'?' selected':''}>ARS</option><option${pre?.cur==='USD'?' selected':''}>USD</option></select></div><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal" oninput="calcIntereses()"></div></div><div class="field"><label>Tipo</label><select id="ftype">${(pre?.cur==='USD'?ITYPES_USD:ITYPES_ARS).map(t=>`<option${pre?.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="field"><label>Fecha</label><input type="date" id="finvDate" value="${pre?.date||todayISO}"></div><div class="field"><label>Tasa % TNA (si aplica)</label><input type="number" id="frend" placeholder="0.0" value="${pre?.rend||''}" inputmode="decimal" oninput="calcIntereses()"></div><div id="interesesCalc" style="font-size:13px;color:var(--blu);text-align:center;font-weight:700;min-height:20px;margin-bottom:8px;padding:8px;background:rgba(59,158,255,.07);border-radius:10px"></div><button class="sh-btn" onclick="saveInv()">Guardar</button>${backBtn}`,
