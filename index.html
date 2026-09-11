@@ -806,7 +806,7 @@ window.showDashDetail=function(tipo){
     // Group by payment method
     const payGroups={};
     items.forEach(e=>{const p=e.pay||'Sin método';if(!payGroups[p])payGroups[p]=[];payGroups[p].push(e);});
-    const row=e=>{const c=cat(e.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat}${e.cardTipo==='Cuota'&&e.cuotaNum?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''}</div></div><div class="tx-right" style="display:flex;align-items:center;gap:6px"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('exp_'+e.id)}</div></div>`;};
+    const row=e=>{const c=cat(e.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat}${e.pay?' · '+e.pay:''}${e.cardTipo==='Cuota'&&e.cuotaNum?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''}</div></div><div class="tx-right" style="display:flex;align-items:center;gap:6px"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('exp_'+e.id)}</div></div>`;};
 
 
     // Person cards - same logic as old toggleDisponibleDetail
@@ -890,7 +890,7 @@ window.showDashDetail=function(tipo){
         </div>
       </div>`;
       html+=`<div id="${collapseId}" style="display:none">`;
-      html+=exps.map(e=>{const c=cat(e.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat}${e.cardTipo==='Cuota'&&e.cuotaNum?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div></div></div>`;}).join('');
+      html+=exps.map(e=>{const c=cat(e.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat}${e.pay?' · '+e.pay:''}${e.cardTipo==='Cuota'&&e.cuotaNum?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div></div></div>`;}).join('');
       cardDebs.forEach(dd=>{html+=`<div class="tx-item"><div class="tx-ico" style="background:var(--pur-dim)">🔄</div><div class="tx-body"><div class="tx-name">${dd.desc}</div><div class="tx-sub">Débito automático</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--pur)">-${dd.cur==='USD'?fmtU(dd.amt):fmtS(dd.amt)}</div></div></div>`;});
       html+=`</div>`;
     });
