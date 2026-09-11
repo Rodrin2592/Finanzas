@@ -185,8 +185,8 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
             <div style="color:#6b7fa0;font-size:10px" id="dashIngTotal">$0</div>
           </div>
         </div>
-        <!-- Período 2: Mitad de mes (informativo) -->
-        <div>
+        <!-- Período 2: Mitad de mes (solo si el perfil cobra un adelanto) -->
+        <div id="bloqueMitadMes">
           <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px"><span data-label="mitad-mes">🌓 Gastos a pagar el 15</span></div>
           <div id="dashDisponibleMitad" style="font-size:22px;font-weight:900;letter-spacing:-1px;margin-bottom:8px">$0</div>
           <div style="height:4px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:6px">
@@ -327,8 +327,8 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
 // tarjetas.
 const PERFILES={
-  nach:{id:'nach',nombre:'Nach',emoji:'👨',dbPath:'/finanzas_hogar',visa:'VISA Nach',master:'MASTERCARD Nach'},
-  euge:{id:'euge',nombre:'Euge',emoji:'👩',dbPath:'/finanzas_euge',visa:'VISA Euge',master:'MASTERCARD Euge'},
+  nach:{id:'nach',nombre:'Nach',emoji:'👨',dbPath:'/finanzas_hogar',visa:'VISA Nach',master:'MASTERCARD Nach',adelanto:true},
+  euge:{id:'euge',nombre:'Euge',emoji:'👩',dbPath:'/finanzas_euge',visa:'VISA Euge',master:'MASTERCARD Euge',adelanto:false},
 };
 // El perfil sale del link: con ?p=euge la app abre ese perfil y queda fija,
 // sin selector. Sin parámetro arranca en el perfil propio y muestra el chip
@@ -708,7 +708,9 @@ function renderHome(){
     if(mk===thisMonth){
       const ds=i.date||'';
       const day=parseInt(ds.includes('/')?ds.split('/')[0]:ds.split('-')[2])||1;
-      return day>15; // día >15 = sueldo fin de mes, no incentivado
+      // Con adelanto, lo cargado hasta el 15 es el adelanto y no suma acá.
+      // Sin adelanto cobra una sola vez: todo el mes cuenta a fin de mes.
+      return PERFIL.adelanto?day>15:true;
     }
     return false;
   }).reduce((a,i)=>a+i.amt,0);
@@ -721,14 +723,14 @@ function renderHome(){
   // Cards: use billing period (cierre dates). Cash/debit: SOLO thisMonth (el mes que vivís)
   const gasMes=S.expenses.filter(e=>{
     if(e.ref)return false;
-    if(e.pay===PERFIL.master)return false;
+    if(PERFIL.adelanto&&e.pay===PERFIL.master)return false; // la paga el adelanto del 15
     const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
     if(isCard) return isCurrentBillingPeriod(e,earnMonth,thisMonth);
     // Efectivo/débito: solo del mes que vivís (thisMonth)
     return itemMonthKey(e)===thisMonth;
   }).reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
   const deudaCuotas=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).reduce((a,d)=>a+(d.cur==='USD'?d.quota*rate:d.quota),0);
-  const debitosAuto=(S.debitos||[]).filter(d=>d.card!==PERFIL.master).reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
+  const debitosAuto=(S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master)).reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
   const invMes=S.investments.filter(i=>{
     if(i.rend)return false;
     if(!i.date)return false; // sin fecha: no incluir (ambiguo)
@@ -777,7 +779,7 @@ function renderHome(){
   // Tarjetas abonadas
   const allItems2=S.expenses.filter(e=>{
     if(e.ref)return false;
-    if(e.pay===PERFIL.master)return false;
+    if(PERFIL.adelanto&&e.pay===PERFIL.master)return false; // la paga el adelanto del 15
     const mk=itemMonthKey(e);
     const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD')||e.pay.includes('MC '));
     if(isCard) return isCurrentBillingPeriod(e,earnMonth,thisMonth);
@@ -894,13 +896,13 @@ window.showDashDetail=function(tipo){
     // Gastos detail: tarjetas por período de cierre, efectivo solo del mes vivido
     const items=S.expenses.filter(e=>{
       if(e.ref)return false;
-      if(e.pay===PERFIL.master)return false;
+      if(PERFIL.adelanto&&e.pay===PERFIL.master)return false; // la paga el adelanto del 15
       const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
       if(isCard) return isCurrentBillingPeriod(e,earnMonth,thisMonth);
       return itemMonthKey(e)===thisMonth;
     });
     const deudaList=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1));
-    const debitosList=(S.debitos||[]).filter(d=>d.card!==PERFIL.master);
+    const debitosList=(S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master));
     const nachGasTotal=items.filter(e=>e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
     // Group by payment method
     const payGroups={};
@@ -1912,6 +1914,8 @@ function saveDeuda(){
 function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un nombre');const obj={id:editingId||nextId++,name,curr:vn('fcurr'),target:vn('ftarget')||null,cur:v('fcur')};if(editingId){const i=S.savings.findIndex(x=>x.id===editingId);if(i>=0)S.savings[i]=obj;}else{S.savings.push(obj);}save();renderAll();closeSheet();}
 
 // INIT
+const bloqueMitad=el('bloqueMitadMes');
+if(bloqueMitad&&!PERFIL.adelanto)bloqueMitad.style.display='none';
 const chipPerfil=el('perfilChip');
 if(chipPerfil){
   // Con link directo no se ofrece cambiar de perfil
