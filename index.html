@@ -150,7 +150,10 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
   <div id="syncBar"><div class="sync-dot"></div><span id="syncMsg">Conectando...</span></div>
   <div class="topbar">
     <div class="app-name">Mis Finanzas</div>
-    <div class="rate-chip" onclick="openRateModal()" id="rateChip">USD $1000</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div class="rate-chip" onclick="abrirSelectorPerfil()" id="perfilChip" title="Cambiar de perfil" style="padding:8px 11px">👤</div>
+      <div class="rate-chip" onclick="openRateModal()" id="rateChip">USD $1000</div>
+    </div>
   </div>
 
   <div class="scroll-area">
@@ -184,13 +187,13 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
         </div>
         <!-- Período 2: Mitad de mes (informativo) -->
         <div>
-          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🌓 Gastos a pagar el 15 (MASTERCARD Nach)</div>
+          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px"><span data-label="mitad-mes">🌓 Gastos a pagar el 15</span></div>
           <div id="dashDisponibleMitad" style="font-size:22px;font-weight:900;letter-spacing:-1px;margin-bottom:8px">$0</div>
           <div style="height:4px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:6px">
             <div id="dashProgressMitad" style="height:100%;border-radius:4px;transition:width .6s;width:0%"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600">
-            <div style="color:#6b7fa0">del sueldo Nach: <span id="dashIngMitad" style="color:#edf2ff">$0</span></div>
+            <div style="color:#6b7fa0">del adelanto: <span id="dashIngMitad" style="color:#edf2ff">$0</span></div>
             <div style="color:#6b7fa0">Usado: <span id="dashPctMitad" style="color:#edf2ff">0%</span></div>
           </div>
         </div>
@@ -211,10 +214,10 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
       </div>
       <!-- Detalle expandible -->
       <div id="dashDetail" style="display:none;margin-bottom:14px"></div>
-      <!-- Gráfico 1: Ingresos vs Gastos (Nach) -->
+      <!-- Gráfico 1: Ingresos vs Gastos -->
       <div class="chart-card">
         <div class="chart-title">Ingresos vs Gastos</div>
-        <div class="chart-sub">Ene — Dic 2026 · Nach</div>
+        <div class="chart-sub" id="barChartSub">Ene — Dic 2026</div>
         <div style="display:flex;align-items:flex-start;gap:0">
           <div id="barScaleY" style="width:44px;flex-shrink:0;padding-right:6px;text-align:right;padding-top:0"></div>
           <div id="barChartScroll" style="flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;cursor:grab;user-select:none" onscroll="syncScrollbar(this)">
@@ -229,7 +232,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
         </div>
         <div style="display:flex;justify-content:center;margin-top:10px;gap:12px;flex-wrap:wrap" id="barLegend"></div>
       </div>
-      <!-- Gráfico 2: Gastos por categoría (Nach) -->
+      <!-- Gráfico 2: Gastos por categoría -->
       <div class="chart-card">
         <div class="chart-title">Gastos por categoría</div>
         <div class="chart-sub" id="pieSubtitle">Mes seleccionado</div>
@@ -319,8 +322,38 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
+// ── PERFILES ─────────────────────────────────────────────────────────
+// Un mismo código para las dos personas. Cada perfil escribe en su propio
+// nodo de la base, así los datos no se mezclan, y trae su nombre y sus
+// tarjetas.
+const PERFILES={
+  nach:{id:'nach',nombre:'Nach',emoji:'👨',dbPath:'/finanzas_hogar',visa:'VISA Nach',master:'MASTERCARD Nach'},
+  euge:{id:'euge',nombre:'Euge',emoji:'👩',dbPath:'/finanzas_euge',visa:'VISA Euge',master:'MASTERCARD Euge'},
+};
+// El perfil sale del link: con ?p=euge la app abre ese perfil y queda fija,
+// sin selector. Sin parámetro arranca en el perfil propio y muestra el chip
+// de arriba para poder mirar cualquiera de los dos.
+function perfilGuardado(){try{return localStorage.getItem('mf_perfil')||'';}catch(e){return'';}}
+const PARAM_PERFIL=(function(){try{return new URLSearchParams(location.search).get('p')||'';}catch(e){return'';}})();
+const MODO_FIJO=!!PERFILES[PARAM_PERFIL];
+const PERFIL=MODO_FIJO?PERFILES[PARAM_PERFIL]:(PERFILES[perfilGuardado()]||PERFILES.nach);
+function elegirPerfil(id){try{localStorage.setItem('mf_perfil',id);}catch(e){}location.reload();}
+function abrirSelectorPerfil(){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(6,9,16,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px';
+  d.onclick=function(e){if(e.target===d)d.remove();};
+  d.innerHTML=`<div style="font-size:20px;font-weight:800;color:var(--tx);margin-bottom:6px">Ver finanzas de</div>${Object.values(PERFILES).map(p=>`<button onclick="elegirPerfil('${p.id}')" style="width:100%;max-width:280px;background:var(--s2);border:1px solid ${p.id===PERFIL.id?'var(--acc)':'var(--br)'};border-radius:20px;padding:18px;font-size:16px;font-weight:800;color:var(--tx);cursor:pointer"><div style="font-size:34px;margin-bottom:6px">${p.emoji}</div>${p.nombre}${p.id===PERFIL.id?' ·':''}</button>`).join('')}<button onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--mu);font-size:13px;font-weight:700;margin-top:6px;cursor:pointer">Cancelar</button>`;
+  document.body.appendChild(d);
+}
+function mostrarSelectorPerfil(){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px';
+  d.innerHTML=`<div style="font-size:24px;font-weight:800;color:var(--tx)">¿Quién sos?</div><div style="font-size:13px;color:var(--mu);text-align:center;margin-bottom:10px;line-height:1.5">Cada uno ve únicamente sus propios datos.<br>Después lo podés cambiar desde el ícono de arriba.</div>${Object.values(PERFILES).map(p=>`<button onclick="elegirPerfil('${p.id}')" style="width:100%;max-width:280px;background:var(--s2);border:1px solid var(--br);border-radius:20px;padding:20px;font-size:17px;font-weight:800;color:var(--tx);cursor:pointer"><div style="font-size:38px;margin-bottom:8px">${p.emoji}</div>${p.nombre}</button>`).join('')}`;
+  document.body.appendChild(d);
+}
+
 const DB_URL = 'https://finance-f3e4b-default-rtdb.firebaseio.com';
-const DB_PATH = '/finanzas_hogar';
+const DB_PATH = PERFIL.dbPath;
 
 async function fbGet() {
   try {
@@ -398,21 +431,21 @@ const ECATS=[
   {n:'Otro',i:'📦',c:'#556080',bg:'rgba(85,96,128,.13)'},
 ];
 const INGRESO_TIPOS=['Sueldo','Freelance','Bono','Alquiler cobrado','Venta','Otro ingreso'];
-const PAYS=['Efectivo','Débito','VISA Nach','MASTERCARD Nach','Transferencia','Mercado Pago'];
-const CARDS=['VISA Nach','MASTERCARD Nach'];
+const PAYS=['Efectivo','Débito',PERFIL.visa,PERFIL.master,'Transferencia','Mercado Pago'];
+const CARDS=[PERFIL.visa,PERFIL.master];
 const CARD_TIPOS=['Débito automático','Cuota','Gasto único'];
 const ITYPES_ARS=['Plazo Fijo','Fondo Común (FCI)','Acciones / Cedears','Cripto (ARS)','Bonos','Otro'];
 const ITYPES_USD=['Dólares Físicos','Cripto (USD)','Acciones Ext.','CEDEAR (USD)','Otro'];
 const DTYPES=['Préstamo Personal','Cuota Auto','Cuota Departamento','Alquiler','Lancha','Tarjetas','Auto','Deuda USD','Deuda no en curso','Otro'];
 
-const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],fijos:[],saldoHistorial:{},cardCfg:{'VISA Nach':{cierre:'',vto:''},'MASTERCARD Nach':{cierre:'',vto:''}}};
+const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],fijos:[],saldoHistorial:{},cardCfg:{[PERFIL.visa]:{cierre:'',vto:''},[PERFIL.master]:{cierre:'',vto:''}}};
 let S = JSON.parse(JSON.stringify(DEF));
 let syncing = false;
 
 async function loadFromCloud() {
   // Show cached data instantly
   try {
-    const cached=localStorage.getItem('mf_bak');
+    const cached=localStorage.getItem(('mf_bak_'+PERFIL.id));
     if(cached){
       S={...DEF,...JSON.parse(cached)};
       S.debitos=S.debitos||[];
@@ -432,7 +465,7 @@ async function loadFromCloud() {
   } else {
     S={...DEF,...data,debitos:data.debitos||[],fijos:data.fijos||[],cardCfg:{...DEF.cardCfg,...(data.cardCfg||{})}};
     // Save to cache immediately so next load is instant
-    try{localStorage.setItem('mf_bak',JSON.stringify(S));}catch(e){}
+    try{localStorage.setItem(('mf_bak_'+PERFIL.id),JSON.stringify(S));}catch(e){}
     setSyncBar('ok','Sincronizado ✓');
     // Migrate categories
     const _cm={'Entretenimiento':'Hogar','Transporte':'Otro','Compras':'Otro','Supermercado':'Comida','Tecnología':'Otro'};
@@ -446,7 +479,7 @@ async function loadFromCloud() {
 
 async function save() {
   // backup local
-  try { localStorage.setItem('mf_bak', JSON.stringify(S)); } catch(e){}
+  try { localStorage.setItem(('mf_bak_'+PERFIL.id), JSON.stringify(S)); } catch(e){}
   setSyncBar('loading', 'Guardando...');
   el('syncBar').style.display='flex';
   _isSaving=true;
@@ -490,7 +523,7 @@ const el=id=>document.getElementById(id);
 const v=id=>el(id)?.value.trim()||'';
 const vn=id=>parseFloat(el(id)?.value)||0;
 const todayISO=new Date().toISOString().slice(0,10);
-let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard='VISA Nach',curDaTab='deudas',curDeudaTab='ARS';
+let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard=PERFIL.visa,curDaTab='deudas',curDeudaTab='ARS';
 let curChartMonth='';
 let selCat2='Comida',isRef=false,nextId=Date.now();
 let editingId=null,editingType=null;
@@ -657,6 +690,8 @@ function renderHome(){
   const nextBtn=el('dashNavNext');
   const maxKey=localMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()+12,1));
   if(nextBtn)nextBtn.style.opacity=thisMonth>=maxKey?'0.3':'1';
+  const mitadLbl=document.querySelector('[data-label="mitad-mes"]');
+  if(mitadLbl)mitadLbl.textContent=`🌓 Gastos a pagar el 15 (${PERFIL.master})`;
   const finLabel=document.querySelector('[data-label="fin-mes"]');
   if(finLabel)finLabel.textContent=`🌕 Disponible fin de ${_earningName}`;
 
@@ -686,14 +721,14 @@ function renderHome(){
   // Cards: use billing period (cierre dates). Cash/debit: SOLO thisMonth (el mes que vivís)
   const gasMes=S.expenses.filter(e=>{
     if(e.ref)return false;
-    if(e.pay==='MASTERCARD Nach')return false;
+    if(e.pay===PERFIL.master)return false;
     const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
     if(isCard) return isCurrentBillingPeriod(e,earnMonth,thisMonth);
     // Efectivo/débito: solo del mes que vivís (thisMonth)
     return itemMonthKey(e)===thisMonth;
   }).reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
   const deudaCuotas=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).reduce((a,d)=>a+(d.cur==='USD'?d.quota*rate:d.quota),0);
-  const debitosAuto=(S.debitos||[]).filter(d=>d.card!=='MASTERCARD Nach').reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
+  const debitosAuto=(S.debitos||[]).filter(d=>d.card!==PERFIL.master).reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
   const invMes=S.investments.filter(i=>{
     if(i.rend)return false;
     if(!i.date)return false; // sin fecha: no incluir (ambiguo)
@@ -707,9 +742,9 @@ function renderHome(){
   const baseTotal=totalIngresos+Math.max(0,arrastre);
   const pctFin=baseTotal>0?Math.min(100,Math.round((totalGastos+invMes)/baseTotal*100)):0;
 
-  // ── MITAD DE MES: incentivado (sueldo del 15 de Nach) − MC Nach ──
+  // ── MITAD DE MES: el adelanto del 15 contra la MASTERCARD del perfil ──
   // Solo ingresos del thisMonth con día ≤ 15 y quien='yo'
-  const ingNach=S.ingresos.filter(i=>{
+  const ingAdelanto=S.ingresos.filter(i=>{
     if(itemMonthKey(i)!==thisMonth)return false;
     if(i.quien!=='yo')return false;
     const ds=i.date||'';
@@ -717,20 +752,20 @@ function renderHome(){
     return day<=15; // solo el incentivado
   }).reduce((a,i)=>a+i.amt,0);
   const gasMitad=S.expenses.filter(e=>{
-    if(e.ref||e.pay!=='MASTERCARD Nach')return false;
+    if(e.ref||e.pay!==PERFIL.master)return false;
     const mk=itemMonthKey(e);
     return mk===earnMonth||mk===thisMonth;
   }).reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-  const debitosMC=(S.debitos||[]).filter(d=>d.card==='MASTERCARD Nach').reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
+  const debitosMC=(S.debitos||[]).filter(d=>d.card===PERFIL.master).reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
   const totalMC=gasMitad+debitosMC;
   // ¿Alcanza el incentivado para cubrir la MC?
-  const deficit=totalMC-ingNach;
+  const deficit=totalMC-ingAdelanto;
   const necesitaDisponible=deficit>0;
   // Disponible acumulado hasta acá (sin contar el incentivado)
   const disponibleAcumulado=Math.max(0,dispFin);
   const alcanzaConDisponible=disponibleAcumulado>=deficit;
-  const saldoMitad=ingNach-totalMC+(necesitaDisponible&&alcanzaConDisponible?deficit:0);
-  const baseMitad=ingNach;
+  const saldoMitad=ingAdelanto-totalMC+(necesitaDisponible&&alcanzaConDisponible?deficit:0);
+  const baseMitad=ingAdelanto;
   const pctMitad=baseMitad>0?Math.min(100,Math.round(totalMC/baseMitad*100)):totalMC>0?100:0;
 
   // ── DISPONIBLE TRANSITORIO (solo lo ya abonado) ──
@@ -742,7 +777,7 @@ function renderHome(){
   // Tarjetas abonadas
   const allItems2=S.expenses.filter(e=>{
     if(e.ref)return false;
-    if(e.pay==='MASTERCARD Nach')return false;
+    if(e.pay===PERFIL.master)return false;
     const mk=itemMonthKey(e);
     const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD')||e.pay.includes('MC '));
     if(isCard) return isCurrentBillingPeriod(e,earnMonth,thisMonth);
@@ -787,18 +822,18 @@ function renderHome(){
   }
 
   // UI mitad de mes
-  const isNegMitad=ingNach<totalMC&&!alcanzaConDisponible;
+  const isNegMitad=ingAdelanto<totalMC&&!alcanzaConDisponible;
   const colM=isNegMitad?'var(--red)':pctMitad>100?'var(--gld)':'var(--blu)';
   const mitadEl=el('dashDisponibleMitad');
   if(mitadEl){
-    mitadEl.textContent=(ingNach<totalMC?'−':'')+fmtS(Math.abs(ingNach-totalMC));
-    mitadEl.style.color=ingNach>=totalMC?'var(--acc)':'var(--red)';
+    mitadEl.textContent=(ingAdelanto<totalMC?'−':'')+fmtS(Math.abs(ingAdelanto-totalMC));
+    mitadEl.style.color=ingAdelanto>=totalMC?'var(--acc)':'var(--red)';
   }
   const barM=el('dashProgressMitad');if(barM){barM.style.width=Math.min(100,pctMitad)+'%';barM.style.background=isNegMitad?'#ff4f6b':pctMitad>80?'#ffb830':'#4da6ff';}
   const pctMEl=el('dashPctMitad');if(pctMEl)pctMEl.textContent=pctMitad+'%';
   const ingMEl=el('dashIngMitad');
   if(ingMEl){
-    let mitadLabel=`Incentivado: ${fmtS(ingNach)}`;
+    let mitadLabel=`Incentivado: ${fmtS(ingAdelanto)}`;
     if(necesitaDisponible){
       if(alcanzaConDisponible){
         mitadLabel+=` · ⚠️ Usá ${fmtS(deficit)} del disponible`;
@@ -848,7 +883,7 @@ window.showDashDetail=function(tipo){
     const refs=S.expenses.filter(e=>e.ref&&(itemMonthKey(e)===earnMonth||itemMonthKey(e)===thisMonth));
     const row=i=>`<div class="tx-item"><div class="tx-ico" style="background:var(--acc-dim)">💼</div><div class="tx-body"><div class="tx-name">${i.desc}</div><div class="tx-sub">${i.tipo||'Ingreso'}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(i.amt)}</div>${actBtns('ingresos',i.id)}</div></div>`;
     d.innerHTML=`<div class="card" onclick="event.stopPropagation()">
-      <div class="subsec">👨 Nach<span class="subsec-r">${fmtS(nach.reduce((a,i)=>a+i.amt,0))}</span></div>${nach.length?nach.map(row).join(''):'<div class="empty" style="padding:8px 0">Sin ingresos</div>'}
+      <div class="subsec">${PERFIL.emoji} ${PERFIL.nombre}<span class="subsec-r">${fmtS(nach.reduce((a,i)=>a+i.amt,0))}</span></div>${nach.length?nach.map(row).join(''):'<div class="empty" style="padding:8px 0">Sin ingresos</div>'}
       ${otros.length?`<div class="subsec" style="margin-top:10px">📌 Otros<span class="subsec-r">${fmtS(otros.reduce((a,i)=>a+i.amt,0))}</span></div>${otros.map(row).join('')}`:''}
       ${intereses>0?`<div class="subsec" style="margin-top:10px">📈 Intereses<span class="subsec-r">${fmtS(intereses)}</span></div>`:''}
       ${refs.length?`<div class="subsec" style="margin-top:10px">🔄 Reintegros<span class="subsec-r">${fmtS(refs.reduce((a,e)=>a+(e.refAmt||e.amt),0))}</span></div>`:''}
@@ -859,13 +894,13 @@ window.showDashDetail=function(tipo){
     // Gastos detail: tarjetas por período de cierre, efectivo solo del mes vivido
     const items=S.expenses.filter(e=>{
       if(e.ref)return false;
-      if(e.pay==='MASTERCARD Nach')return false;
+      if(e.pay===PERFIL.master)return false;
       const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
       if(isCard) return isCurrentBillingPeriod(e,earnMonth,thisMonth);
       return itemMonthKey(e)===thisMonth;
     });
     const deudaList=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1));
-    const debitosList=(S.debitos||[]).filter(d=>d.card!=='MASTERCARD Nach');
+    const debitosList=(S.debitos||[]).filter(d=>d.card!==PERFIL.master);
     const nachGasTotal=items.filter(e=>e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
     // Group by payment method
     const payGroups={};
@@ -924,7 +959,7 @@ window.showDashDetail=function(tipo){
 
     let html=`<div class="card" onclick="event.stopPropagation()">`;
     // Person breakdown at top
-    html+=personCard2('👨','Nach',nachIng2,nachGasTotal,nachRef2,nachDisp2,'var(--acc)');
+    html+=personCard2(PERFIL.emoji,PERFIL.nombre,nachIng2,nachGasTotal,nachRef2,nachDisp2,'var(--acc)');
     // Compromisos compartidos
     html+=deudasHtml;
     // Payment method breakdown
@@ -1243,6 +1278,8 @@ function monthName(key){const[y,m]=key.split('-');return['Ene','Feb','Mar','Abr'
 function renderGraficos(){
   const rate=S.settings.usdRate||1;
   const months=getYear2026();
+  const subEl=el('barChartSub');
+  if(subEl)subEl.textContent=`Ene — Dic 2026 · ${PERFIL.nombre}`;
   if(!curChartMonth||!months.includes(curChartMonth))curChartMonth=new Date().toISOString().slice(0,7);
   if(!months.includes(curChartMonth))curChartMonth=months[months.length-1];
   Chart.defaults.color='#4e5d78';Chart.defaults.font={family:"'Inter',sans-serif",size:11};
@@ -1252,8 +1289,8 @@ function renderGraficos(){
   if(barChartInst){barChartInst.destroy();barChartInst=null;}
   // Custom scrollable bar chart with Y scale
   const datasets=[
-    {label:'Ing. Nach',data:nachInc,color:'#00f0a8'},
-    {label:'Gas. Nach',data:nachExp,color:'#ff4f6b'},
+    {label:'Ing. '+PERFIL.nombre,data:nachInc,color:'#00f0a8'},
+    {label:'Gas. '+PERFIL.nombre,data:nachExp,color:'#ff4f6b'},
   ];
   const allVals=[...nachInc,...nachExp].filter(v=>v>0);
   const maxVal=allVals.length?Math.max(...allVals)*1.18:100000;
@@ -1875,6 +1912,12 @@ function saveDeuda(){
 function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un nombre');const obj={id:editingId||nextId++,name,curr:vn('fcurr'),target:vn('ftarget')||null,cur:v('fcur')};if(editingId){const i=S.savings.findIndex(x=>x.id===editingId);if(i>=0)S.savings[i]=obj;}else{S.savings.push(obj);}save();renderAll();closeSheet();}
 
 // INIT
+const chipPerfil=el('perfilChip');
+if(chipPerfil){
+  // Con link directo no se ofrece cambiar de perfil
+  if(MODO_FIJO)chipPerfil.style.display='none';
+  else chipPerfil.textContent=PERFIL.emoji;
+}
 loadFromCloud();
 // Fetch USD en tiempo real al arrancar
 setTimeout(fetchDolar, 2000);
