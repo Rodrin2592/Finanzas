@@ -252,10 +252,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
       </div>
     </div>
     <div class="page" id="page-gastos">
-      <div class="tabs" id="expTabs">
-        <div class="tab active" onclick="expTab('gasto',this)">Gastos</div>
-        <div class="tab" onclick="expTab('tarjeta',this)">Tarjetas</div>
-      </div>
       <div id="gastosTabContent"></div>
     </div>
     <div class="page" id="page-ingresos">
@@ -511,8 +507,8 @@ const el=id=>document.getElementById(id);
 const v=id=>el(id)?.value.trim()||'';
 const vn=id=>parseFloat(el(id)?.value)||0;
 const todayISO=new Date().toISOString().slice(0,10);
-let curPage='inicio',curExpTab='gasto',curPayFilter='Todos',curInvTab='ARS',curHeroTab='sueldo',curCard='VISA Nach',curDaTab='deudas',curIncTab='ingresos',curDeudaTab='ARS';
-let curWeek='all',curIncWeek='all',curChartMonth='';
+let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard='VISA Nach',curDaTab='deudas',curIncTab='ingresos',curDeudaTab='ARS';
+let curIncWeek='all',curChartMonth='';
 let selCat2='Comida',isRef=false,nextId=Date.now();
 let editingId=null,editingType=null;
 let barChartInst=null,pieChartInst=null,pieSortDesc=true;
@@ -1009,150 +1005,129 @@ function togglePayStatus(monthKey,payMethod,btn){
 
 function renderGastos(){
   const container=el('gastosTabContent');
-  if(curExpTab==='tarjeta'){
-    const cfg=S.cardCfg[curCard]||{cierre:'',vto:''};
-    const rate=S.settings.usdRate;
-    const now=new Date();
-    const today=now.getDate();
-    // Parse cierre - supports full date "2026-05-07" or day number "7"
-    let cierreDay=0;
-    if(cfg.cierre){
-      if(cfg.cierre.includes('-')){
-        cierreDay=new Date(cfg.cierre+'T12:00:00').getDate();
-      } else {
-        cierreDay=parseInt(cfg.cierre)||0;
-      }
+  const cfg=S.cardCfg[curCard]||{cierre:'',vto:''};
+  const rate=S.settings.usdRate;
+  const now=new Date();
+  const today=now.getDate();
+  // Parse cierre - supports full date "2026-05-07" or day number "7"
+  let cierreDay=0;
+  if(cfg.cierre){
+    if(cfg.cierre.includes('-')){
+      cierreDay=new Date(cfg.cierre+'T12:00:00').getDate();
+    } else {
+      cierreDay=parseInt(cfg.cierre)||0;
     }
-
-    // Determine periods based on closing date
-    // Period A (closed): from last closing date to current closing date → to pay now
-    // Period B (open): from current closing date to next closing → currently spending
-    let periodALabel='Período anterior';
-    let periodBLabel='Período actual';
-    let periodAClosed=false;
-
-    // Helper: get period month key for an expense
-    // If cierre is set, expenses after closing day of prev month belong to current bill
-    const getExpPeriod=(e)=>{
-      if(!cierreDay||!e.date)return'current';
-      const d=new Date(e.date+'T12:00:00');
-      const expDay=d.getDate();
-      const expMonth=d.getMonth();const expYear=d.getFullYear();
-      // If expense day > cierre day → belongs to next month's bill
-      if(expDay>cierreDay){
-        // belongs to bill of expMonth+1
-        const billDate=new Date(expYear,expMonth+1,1);
-        return billDate.getFullYear()+'-'+String(billDate.getMonth()+1).padStart(2,'0');
-      } else {
-        // belongs to bill of expMonth
-        return expYear+'-'+String(expMonth+1).padStart(2,'0');
-      }
-    };
-
-    // Current bill = this month's bill
-    const currentBillKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    // Previous bill = last month
-    const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
-    const prevBillKey=prevDate.getFullYear()+'-'+String(prevDate.getMonth()+1).padStart(2,'0');
-
-    // Has the current period closed already?
-    if(cierreDay&&today>cierreDay){
-      periodAClosed=true;
-      periodALabel=`Liquidación cerrada (venció día ${cfg.vto||'?'})`;
-      periodBLabel='Nuevo período (en curso)';
-    }
-
-    const cardExpenses=S.expenses.filter(e=>!e.ref&&e.pay===curCard);
-    const debs=(S.debitos||[]).filter(d=>d.card===curCard);
-
-    // Closed period expenses (current bill if closed, else prev bill)
-    const closedKey=periodAClosed?currentBillKey:prevBillKey;
-    const openKey=periodAClosed?
-      (new Date(now.getFullYear(),now.getMonth()+1,1).getFullYear()+'-'+String(new Date(now.getFullYear(),now.getMonth()+1,1).getMonth()+1).padStart(2,'0')):
-      currentBillKey;
-
-    const closedExp=cierreDay?cardExpenses.filter(e=>getExpPeriod(e)===closedKey):cardExpenses.filter(e=>itemMonthKey(e)===prevBillKey);
-    // Open period: use cierreActual if configured, otherwise fallback
-    const openExp=cfg.cierreActual?cardExpenses.filter(e=>{
-      if(!e.date)return false;
-      const ds2=e.date.includes('/')?e.date.split('/').reverse().join('-'):e.date;
-      const ed=new Date(ds2+'T12:00:00');
-      const ca=new Date((cfg.cierre||'2000-01-01')+'T23:59:59');
-      const caa=new Date(cfg.cierreActual+'T23:59:59');
-      return ed>ca&&ed<=caa;
-    }):(cierreDay?cardExpenses.filter(e=>getExpPeriod(e)===openKey):cardExpenses.filter(e=>itemMonthKey(e)===currentBillKey));
-
-    // Cuotas for each period
-    const closedCuot=closedExp.filter(e=>e.cardTipo==='Cuota');
-    const closedUnic=closedExp.filter(e=>!e.cardTipo||e.cardTipo==='Gasto único');
-    const openCuot=openExp.filter(e=>e.cardTipo==='Cuota');
-    const openUnic=openExp.filter(e=>!e.cardTipo||e.cardTipo==='Gasto único');
-
-    // Totals for closed period (includes debitos)
-    const closedTotARS=closedExp.filter(i=>i.cur!=='USD').reduce((a,i)=>a+i.amt,0)+debs.filter(d=>d.cur!=='USD').reduce((a,d)=>a+d.amt,0);
-    const closedTotUSD=closedExp.filter(i=>i.cur==='USD').reduce((a,i)=>a+i.amt,0)+debs.filter(d=>d.cur==='USD').reduce((a,d)=>a+d.amt,0);
-    const openTotARS=openExp.filter(i=>i.cur!=='USD').reduce((a,i)=>a+i.amt,0);
-    const openTotUSD=openExp.filter(i=>i.cur==='USD').reduce((a,i)=>a+i.amt,0);
-
-    const bc=curCard.includes('VISA')?'var(--blu)':'var(--gld)';
-    const iRow=e=>{const c=cat(e.cat);const cs=e.cardTipo==='Cuota'&&e.cuotaNum?`Cuota ${e.cuotaNum}/${e.cuotaTotal} · `:'';const da=e.cur==='USD'?fmtU(e.amt)+' (≈'+fmtS(e.amt*rate)+')':fmtS(e.amt);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${cs}${e.cat}</div></div><div class="tx-right"><div class="tx-amt" style="color:${e.cur==='USD'?'var(--blu)':'var(--red)'}">${da}</div>${actBtns('expenses',e.id)}</div></div>`;};
-    const debRow=d=>{const c=cat(d.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${d.desc}</div><div class="tx-sub">${d.cat} · Mensual 🔄</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--pur)">${d.cur==='USD'?fmtU(d.amt):fmtS(d.amt)}</div><div class="tx-actions"><button class="tx-btn edit" onclick="editDebito(${d.id})">editar</button><button class="tx-btn del" onclick="delDebito(${d.id})">eliminar</button></div></div></div>`;};
-    const sec=(t2,arr,col,rows)=>`<div class="subsec" style="color:${col}">${t2}<span class="subsec-r">${arr.length}</span></div>${arr.length?'<div class="card">'+rows.join('')+'</div>':'<div class="empty" style="padding:8px 0">Ninguno</div>'}`;
-
-    const cardTabsHtml=`<div style="overflow-x:auto;display:flex;gap:6px;margin-bottom:14px;scrollbar-width:none">${CARDS.map(c=>`<div class="tab${curCard===c?' active':''}" onclick="cardTab('${c}',this)" style="font-size:10px;white-space:nowrap;padding:8px 10px;border-radius:10px;background:${curCard===c?'var(--s3)':'var(--s2)'};color:${curCard===c?'var(--tx)':'var(--mu)'};cursor:pointer;border:1px solid var(--br)">${c}</div>`).join('')}</div>`;
-
-    // CLOSED PERIOD SUMMARY
-    const closedSummary=`<div style="background:${periodAClosed?'rgba(255,79,107,.08)':'rgba(255,184,48,.06)'};border:1px solid ${periodAClosed?'rgba(255,79,107,.25)':'rgba(255,184,48,.2)'};border-radius:18px;padding:16px;margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:800;color:${periodAClosed?'var(--red)':'var(--gld)'}">📋 ${periodALabel}</div>
-        ${periodAClosed?`<div style="background:var(--red-dim);color:var(--red);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">A PAGAR</div>`:''}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total ARS</div><div style="font-size:18px;font-weight:900;color:var(--red)">${fmtS(closedTotARS)}</div></div>
-        <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total USD</div><div style="font-size:18px;font-weight:900;color:var(--blu)">${fmtU(closedTotUSD)}</div></div>
-      </div>
-      ${sec('🔄 Débitos automáticos',debs,'var(--pur)',debs.map(debRow))}
-      ${sec('📅 Cuotas',closedCuot,'var(--gld)',closedCuot.map(iRow))}
-      ${sec('💳 Gastos únicos',closedUnic,'var(--blu)',closedUnic.map(iRow))}
-    </div>`;
-
-    // OPEN PERIOD
-    const openSummary=`<div style="background:rgba(0,240,168,.05);border:1px solid rgba(0,240,168,.15);border-radius:18px;padding:16px;margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:800;color:var(--acc)">✏️ ${periodBLabel}</div>
-        <div style="background:var(--acc-dim);color:var(--acc);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">EN CURSO</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Acumulado ARS</div><div style="font-size:18px;font-weight:900;color:var(--acc)">${fmtS(openTotARS)}</div></div>
-        <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Acumulado USD</div><div style="font-size:18px;font-weight:900;color:var(--blu)">${fmtU(openTotUSD)}</div></div>
-      </div>
-      ${sec('📅 Cuotas',openCuot,'var(--gld)',openCuot.map(iRow))}
-      ${sec('💳 Gastos únicos',openUnic,'var(--blu)',openUnic.map(iRow))}
-    </div>`;
-
-    const configBanner=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:800;color:${bc}">${curCard}</div><div style="display:flex;gap:8px;align-items:center"><div style="font-size:11px;color:var(--mu)">Cierre: <b style="color:var(--tx)">${cfg.cierre?'día '+cfg.cierre:'–'}</b> · Vto: <b style="color:var(--tx)">${cfg.vto?'día '+cfg.vto:'–'}</b></div><button class="cfg-btn" onclick="openCardCfg('${curCard}')">⚙️</button></div></div>`;
-
-    container.innerHTML=cardTabsHtml+configBanner+closedSummary+openSummary;
-    return;
   }
-  let gastos=S.expenses.filter(e=>!e.ref);
-  const rate=S.settings.usdRate||1;
-  const wkeys=buildWeekKeys(gastos);
-  const weekBarHtml=`<div class="week-bar">${[{key:'all',label:'Todo'},...wkeys.map(k=>({key:k,label:weekLabel(k)}))].map(w=>`<div class="wpill${w.key===curWeek?' active':''}" onclick="setWeek('${w.key}')">${w.label}</div>`).join('')}</div>`;
-  let wSumHtml='';
-  if(curWeek!=='all'){const fw=filterByWeek(gastos,curWeek);const tot=fw.reduce((a,i)=>a+(i.amt||0),0);wSumHtml=`<div class="week-summary" style="display:flex"><div class="ws-item"><div class="ws-lbl">Movimientos</div><div class="ws-val">${fw.length}</div></div><div class="ws-item"><div class="ws-lbl">Total</div><div class="ws-val" style="color:var(--red)">${fmtS(tot)}</div></div><div class="ws-item"><div class="ws-lbl">Prom/día</div><div class="ws-val">${fmtS(tot/7)}</div></div></div>`;}
-  const pillsHtml=`<div class="pills">${['Todos','Efectivo','Débito','VISA Nach','MC Nach','V.Adic Nach','MC Adic Nach','MP'].map(p=>{const full=p==='MC Nach'?'MASTERCARD Nach':p==='V.Adic Nach'?'VISA Adic Nach':p==='MC Adic Nach'?'MC Adic Nach':p==='MP'?'Mercado Pago':p;return`<div class="pill${curPayFilter===full?' active':''}" onclick="filterPay('${full}')">${p}</div>`;}).join('')}</div>`;
-  let list=filterByWeek(gastos,curWeek);
-  if(curPayFilter!=='Todos')list=list.filter(e=>e.pay===curPayFilter);
-  // Totals based on filtered list
-  const totARS=list.filter(e=>e.cur!=='USD').reduce((a,e)=>a+e.amt,0);
-  const totUSD=list.filter(e=>e.cur==='USD').reduce((a,e)=>a+e.amt,0);
-  const filterLabel=curPayFilter!=='Todos'?` (${curPayFilter})`:'';
-  const summaryHtml=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><div class="tot-box" style="background:var(--s1);border-radius:14px;padding:14px;border:1px solid var(--br)"><div class="tot-lbl">Total Pesos${filterLabel}</div><div class="tot-val" style="color:var(--red);font-size:18px">${fmtS(totARS)}</div></div><div class="tot-box" style="background:var(--s1);border-radius:14px;padding:14px;border:1px solid var(--br)"><div class="tot-lbl">Total USD${filterLabel}</div><div class="tot-val" style="color:var(--blu);font-size:18px">${fmtU(totUSD)}</div></div></div>`;
-  const txRow=e=>{const c=cat(e.cat);const sub2=(e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD')))&&e.cardTipo?` · ${e.cardTipo}`:'';const cuota=e.cardTipo==='Cuota'&&e.cuotaNum?` (${e.cuotaNum}/${e.cuotaTotal})`:'';const dispAmt=e.cur==='USD'?fmtU(e.amt):fmtS(e.ref?(e.refAmt||e.amt):e.amt);const refInfo=e.ref&&e.refPct?`<div style="font-size:11px;color:var(--acc);margin-top:2px">${e.refPct}%${e.refMax?' · tope '+fmtS(e.refMax):''} → ${fmtS(e.refAmt)}</div>`:'';return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat} · ${e.pay}${sub2}${cuota}</div>${refInfo}</div><div class="tx-right"><div class="tx-amt" style="color:${e.ref?'var(--acc)':'var(--red)'}">${e.ref?'+':'-'}${dispAmt}</div>${actBtns('expenses',e.id)}</div></div>`;};
-  let listHtml='';
-  listHtml=list.length?'<div class="card">'+list.map(txRow).join('')+'</div>':'<div class="empty">Sin '+(curExpTab==='reintegro'?'reintegros':'gastos')+' aquí</div>';
-  container.innerHTML=summaryHtml+weekBarHtml+wSumHtml+pillsHtml+listHtml;
+
+  // Determine periods based on closing date
+  // Period A (closed): from last closing date to current closing date → to pay now
+  // Period B (open): from current closing date to next closing → currently spending
+  let periodALabel='Período anterior';
+  let periodBLabel='Período actual';
+  let periodAClosed=false;
+
+  // Helper: get period month key for an expense
+  // If cierre is set, expenses after closing day of prev month belong to current bill
+  const getExpPeriod=(e)=>{
+    if(!cierreDay||!e.date)return'current';
+    const d=new Date(e.date+'T12:00:00');
+    const expDay=d.getDate();
+    const expMonth=d.getMonth();const expYear=d.getFullYear();
+    // If expense day > cierre day → belongs to next month's bill
+    if(expDay>cierreDay){
+      // belongs to bill of expMonth+1
+      const billDate=new Date(expYear,expMonth+1,1);
+      return billDate.getFullYear()+'-'+String(billDate.getMonth()+1).padStart(2,'0');
+    } else {
+      // belongs to bill of expMonth
+      return expYear+'-'+String(expMonth+1).padStart(2,'0');
+    }
+  };
+
+  // Current bill = this month's bill
+  const currentBillKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  // Previous bill = last month
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevBillKey=prevDate.getFullYear()+'-'+String(prevDate.getMonth()+1).padStart(2,'0');
+
+  // Has the current period closed already?
+  if(cierreDay&&today>cierreDay){
+    periodAClosed=true;
+    periodALabel=`Liquidación cerrada (venció día ${cfg.vto||'?'})`;
+    periodBLabel='Nuevo período (en curso)';
+  }
+
+  const cardExpenses=S.expenses.filter(e=>!e.ref&&e.pay===curCard);
+  const debs=(S.debitos||[]).filter(d=>d.card===curCard);
+
+  // Closed period expenses (current bill if closed, else prev bill)
+  const closedKey=periodAClosed?currentBillKey:prevBillKey;
+  const openKey=periodAClosed?
+    (new Date(now.getFullYear(),now.getMonth()+1,1).getFullYear()+'-'+String(new Date(now.getFullYear(),now.getMonth()+1,1).getMonth()+1).padStart(2,'0')):
+    currentBillKey;
+
+  const closedExp=cierreDay?cardExpenses.filter(e=>getExpPeriod(e)===closedKey):cardExpenses.filter(e=>itemMonthKey(e)===prevBillKey);
+  // Open period: use cierreActual if configured, otherwise fallback
+  const openExp=cfg.cierreActual?cardExpenses.filter(e=>{
+    if(!e.date)return false;
+    const ds2=e.date.includes('/')?e.date.split('/').reverse().join('-'):e.date;
+    const ed=new Date(ds2+'T12:00:00');
+    const ca=new Date((cfg.cierre||'2000-01-01')+'T23:59:59');
+    const caa=new Date(cfg.cierreActual+'T23:59:59');
+    return ed>ca&&ed<=caa;
+  }):(cierreDay?cardExpenses.filter(e=>getExpPeriod(e)===openKey):cardExpenses.filter(e=>itemMonthKey(e)===currentBillKey));
+
+  // Cuotas for each period
+  const closedCuot=closedExp.filter(e=>e.cardTipo==='Cuota');
+  const closedUnic=closedExp.filter(e=>!e.cardTipo||e.cardTipo==='Gasto único');
+  const openCuot=openExp.filter(e=>e.cardTipo==='Cuota');
+  const openUnic=openExp.filter(e=>!e.cardTipo||e.cardTipo==='Gasto único');
+
+  // Totals for closed period (includes debitos)
+  const closedTotARS=closedExp.filter(i=>i.cur!=='USD').reduce((a,i)=>a+i.amt,0)+debs.filter(d=>d.cur!=='USD').reduce((a,d)=>a+d.amt,0);
+  const closedTotUSD=closedExp.filter(i=>i.cur==='USD').reduce((a,i)=>a+i.amt,0)+debs.filter(d=>d.cur==='USD').reduce((a,d)=>a+d.amt,0);
+  const openTotARS=openExp.filter(i=>i.cur!=='USD').reduce((a,i)=>a+i.amt,0);
+  const openTotUSD=openExp.filter(i=>i.cur==='USD').reduce((a,i)=>a+i.amt,0);
+
+  const bc=curCard.includes('VISA')?'var(--blu)':'var(--gld)';
+  const iRow=e=>{const c=cat(e.cat);const cs=e.cardTipo==='Cuota'&&e.cuotaNum?`Cuota ${e.cuotaNum}/${e.cuotaTotal} · `:'';const da=e.cur==='USD'?fmtU(e.amt)+' (≈'+fmtS(e.amt*rate)+')':fmtS(e.amt);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${cs}${e.cat}</div></div><div class="tx-right"><div class="tx-amt" style="color:${e.cur==='USD'?'var(--blu)':'var(--red)'}">${da}</div>${actBtns('expenses',e.id)}</div></div>`;};
+  const debRow=d=>{const c=cat(d.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${d.desc}</div><div class="tx-sub">${d.cat} · Mensual 🔄</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--pur)">${d.cur==='USD'?fmtU(d.amt):fmtS(d.amt)}</div><div class="tx-actions"><button class="tx-btn edit" onclick="editDebito(${d.id})">editar</button><button class="tx-btn del" onclick="delDebito(${d.id})">eliminar</button></div></div></div>`;};
+  const sec=(t2,arr,col,rows)=>`<div class="subsec" style="color:${col}">${t2}<span class="subsec-r">${arr.length}</span></div>${arr.length?'<div class="card">'+rows.join('')+'</div>':'<div class="empty" style="padding:8px 0">Ninguno</div>'}`;
+
+  const cardTabsHtml=`<div style="overflow-x:auto;display:flex;gap:6px;margin-bottom:14px;scrollbar-width:none">${CARDS.map(c=>`<div class="tab${curCard===c?' active':''}" onclick="cardTab('${c}',this)" style="font-size:10px;white-space:nowrap;padding:8px 10px;border-radius:10px;background:${curCard===c?'var(--s3)':'var(--s2)'};color:${curCard===c?'var(--tx)':'var(--mu)'};cursor:pointer;border:1px solid var(--br)">${c}</div>`).join('')}</div>`;
+
+  // CLOSED PERIOD SUMMARY
+  const closedSummary=`<div style="background:${periodAClosed?'rgba(255,79,107,.08)':'rgba(255,184,48,.06)'};border:1px solid ${periodAClosed?'rgba(255,79,107,.25)':'rgba(255,184,48,.2)'};border-radius:18px;padding:16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:${periodAClosed?'var(--red)':'var(--gld)'}">📋 ${periodALabel}</div>
+      ${periodAClosed?`<div style="background:var(--red-dim);color:var(--red);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">A PAGAR</div>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total ARS</div><div style="font-size:18px;font-weight:900;color:var(--red)">${fmtS(closedTotARS)}</div></div>
+      <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total USD</div><div style="font-size:18px;font-weight:900;color:var(--blu)">${fmtU(closedTotUSD)}</div></div>
+    </div>
+    ${sec('🔄 Débitos automáticos',debs,'var(--pur)',debs.map(debRow))}
+    ${sec('📅 Cuotas',closedCuot,'var(--gld)',closedCuot.map(iRow))}
+    ${sec('💳 Gastos únicos',closedUnic,'var(--blu)',closedUnic.map(iRow))}
+  </div>`;
+
+  // OPEN PERIOD
+  const openSummary=`<div style="background:rgba(0,240,168,.05);border:1px solid rgba(0,240,168,.15);border-radius:18px;padding:16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:var(--acc)">✏️ ${periodBLabel}</div>
+      <div style="background:var(--acc-dim);color:var(--acc);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">EN CURSO</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Acumulado ARS</div><div style="font-size:18px;font-weight:900;color:var(--acc)">${fmtS(openTotARS)}</div></div>
+      <div style="background:rgba(0,0,0,.2);border-radius:12px;padding:12px;text-align:center"><div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:4px">Acumulado USD</div><div style="font-size:18px;font-weight:900;color:var(--blu)">${fmtU(openTotUSD)}</div></div>
+    </div>
+    ${sec('📅 Cuotas',openCuot,'var(--gld)',openCuot.map(iRow))}
+    ${sec('💳 Gastos únicos',openUnic,'var(--blu)',openUnic.map(iRow))}
+  </div>`;
+
+  const configBanner=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:800;color:${bc}">${curCard}</div><div style="display:flex;gap:8px;align-items:center"><div style="font-size:11px;color:var(--mu)">Cierre: <b style="color:var(--tx)">${cfg.cierre?'día '+cfg.cierre:'–'}</b> · Vto: <b style="color:var(--tx)">${cfg.vto?'día '+cfg.vto:'–'}</b></div><button class="cfg-btn" onclick="openCardCfg('${curCard}')">⚙️</button></div></div>`;
+
+  container.innerHTML=cardTabsHtml+configBanner+closedSummary+openSummary;
 }
 
 function renderIngresos(){
@@ -1560,14 +1535,11 @@ function goPage(n,btn){
   else if(n==='cotizaciones')fetchCotizaciones();
 }
 function heroTab(t,btn){curHeroTab=t;document.querySelectorAll('#htabs .htab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderHero();}
-function expTab(t,btn){curExpTab=t;document.querySelectorAll('#expTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');curWeek='all';renderGastos();}
-function filterPay(p){curPayFilter=p;renderGastos();}
 function invTab(t,btn){curInvTab=t;document.querySelectorAll('#invTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInversiones();}
 function cardTab(t){curCard=t;renderGastos();}
 function incTab(t,btn){curIncTab=t;document.querySelectorAll('#incTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');curIncWeek='all';renderIngresos();}
 function deudaTab(t,btn){curDeudaTab=t;document.querySelectorAll('#deudasTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderDeudas();}
 function daTab(t,btn){curDaTab=t;document.querySelectorAll('#daTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderDeudas();}
-function setWeek(k){curWeek=k;renderGastos();}
 function setIncWeek(k){curIncWeek=k;renderIngresos();}
 function syncScrollbar(el){
   const thumb=document.getElementById('barScrollThumb');
@@ -1638,7 +1610,7 @@ function editItem(type,id){
 function openSheet(){
   try{
     editingId=null;editingType=null;selCat2='Comida';isRef=false;
-    if(curPage==='gastos'&&curExpTab==='tarjeta'){
+    if(curPage==='gastos'){
       el('shTitle').textContent='Nuevo cargo en '+curCard;
       el('shBody').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
         <button class="sh-btn" style="background:rgba(176,108,255,.15);color:var(--pur);box-shadow:none" onclick="openDebitoForm()">🔄 Débito automático</button>
@@ -1775,7 +1747,7 @@ function onDeudaTipoChange(){
 var backBtn=`<button class="back-btn" onclick="closeSheet()">← Volver</button>`;
 var forms={
   ingreso:(pre)=>`<div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Sueldo abril" value="${pre?.desc||''}"></div><div class="row2"><div class="field"><label>Tipo</label><select id="ftipo">${INGRESO_TIPOS.map(t=>`<option${pre?.tipo===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="field"><label>Monto ($)</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal"></div></div><div class="field"><label>Fecha</label><input type="date" id="fdate" value="${pre?.date||todayISO}"></div><button class="sh-btn" onclick="saveIngreso()">Guardar</button>${backBtn}`,
-  gasto:(preCard,pre)=>`<div class="toggle-row"><span class="toggle-lbl">Es un reintegro</span><div class="toggle" id="refToggle" onclick="toggleRef()"></div></div><div class="toggle-row" style="margin-bottom:8px"><span class="toggle-lbl">💼 Gasto compartido</span><div class="toggle${pre?.shared?' on':''}" id="sharedToggle" onclick="this.classList.toggle('on')"></div></div><div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Almuerzo..." value="${pre?.desc||''}"></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal" oninput="updateRefCalc()"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS"${pre?.cur!=='USD'?' selected':''}>ARS</option><option value="USD"${pre?.cur==='USD'?' selected':''}>USD</option></select></div></div><div class="field"><label>Método de pago</label><select id="fpay" onchange="onPayChange()">${PAYS.map(p=>`<option${(preCard===p||pre?.pay===p)?' selected':''}>${p}</option>`).join('')}</select></div><div id="cardClosedWarn" style="display:none;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.3);border-radius:12px;padding:10px 12px;font-size:12px;color:#ffb830;font-weight:600;margin-bottom:10px"></div><div class="card-extra" id="cardExtra" style="display:${(preCard||pre?.cardTipo)?'block':'none'}"><div class="field" style="margin-bottom:8px"><label>Tipo de cargo</label><select id="fcardTipo" onchange="onCardTipoChange()">${CARD_TIPOS.map(o=>`<option${pre?.cardTipo===o?' selected':''}>${o}</option>`).join('')}</select></div><div class="row2" id="cuotaFields" style="display:${pre?.cardTipo==='Cuota'?'grid':'none'}"><div class="field" style="margin-bottom:0"><label>Cuota N°</label><input type="number" id="fcuotaNum" value="${pre?.cuotaNum||1}" inputmode="numeric"></div><div class="field" style="margin-bottom:0"><label>Total cuotas</label><input type="number" id="fcuotaTotal" value="${pre?.cuotaTotal||1}" inputmode="numeric"></div></div></div><div class="ref-box" id="refBox"><div class="row2"><div class="field" style="margin-bottom:8px"><label>% reintegro</label><input type="number" id="frefPct" placeholder="40" value="${pre?.refPct||''}" inputmode="decimal" oninput="updateRefCalc()"></div><div class="field" style="margin-bottom:8px"><label>Tope máximo</label><input type="number" id="frefMax" placeholder="Sin tope" value="${pre?.refMax||''}" inputmode="decimal" oninput="updateRefCalc()"></div></div><div class="ref-calc" id="refCalc"></div></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><div class="field"><label>Fecha</label><input type="date" id="fdate" value="${pre?.date||todayISO}"></div><button class="sh-btn" onclick="saveGasto()">Guardar</button>${backBtn}`,
+  gasto:(preCard,pre)=>`<div class="toggle-row"><span class="toggle-lbl">Es un reintegro</span><div class="toggle" id="refToggle" onclick="toggleRef()"></div></div><div class="toggle-row" style="margin-bottom:8px"><span class="toggle-lbl">💼 Gasto compartido</span><div class="toggle${pre?.shared?' on':''}" id="sharedToggle" onclick="this.classList.toggle('on')"></div></div><div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Almuerzo..." value="${pre?.desc||''}"></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal" oninput="updateRefCalc()"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS"${pre?.cur!=='USD'?' selected':''}>ARS</option><option value="USD"${pre?.cur==='USD'?' selected':''}>USD</option></select></div></div><div class="field"><label>Método de pago</label><select id="fpay" onchange="onPayChange()">${CARDS.map(p=>`<option${(preCard===p||pre?.pay===p)?' selected':''}>${p}</option>`).join('')}</select></div><div id="cardClosedWarn" style="display:none;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.3);border-radius:12px;padding:10px 12px;font-size:12px;color:#ffb830;font-weight:600;margin-bottom:10px"></div><div class="card-extra" id="cardExtra" style="display:${(preCard||pre?.cardTipo)?'block':'none'}"><div class="field" style="margin-bottom:8px"><label>Tipo de cargo</label><select id="fcardTipo" onchange="onCardTipoChange()">${CARD_TIPOS.map(o=>`<option${pre?.cardTipo===o?' selected':''}>${o}</option>`).join('')}</select></div><div class="row2" id="cuotaFields" style="display:${pre?.cardTipo==='Cuota'?'grid':'none'}"><div class="field" style="margin-bottom:0"><label>Cuota N°</label><input type="number" id="fcuotaNum" value="${pre?.cuotaNum||1}" inputmode="numeric"></div><div class="field" style="margin-bottom:0"><label>Total cuotas</label><input type="number" id="fcuotaTotal" value="${pre?.cuotaTotal||1}" inputmode="numeric"></div></div></div><div class="ref-box" id="refBox"><div class="row2"><div class="field" style="margin-bottom:8px"><label>% reintegro</label><input type="number" id="frefPct" placeholder="40" value="${pre?.refPct||''}" inputmode="decimal" oninput="updateRefCalc()"></div><div class="field" style="margin-bottom:8px"><label>Tope máximo</label><input type="number" id="frefMax" placeholder="Sin tope" value="${pre?.refMax||''}" inputmode="decimal" oninput="updateRefCalc()"></div></div><div class="ref-calc" id="refCalc"></div></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><div class="field"><label>Fecha</label><input type="date" id="fdate" value="${pre?.date||todayISO}"></div><button class="sh-btn" onclick="saveGasto()">Guardar</button>${backBtn}`,
   inversion:(pre)=>`<div class="field"><label>Nombre</label><input type="text" id="fname" placeholder="Ej: Compra Dólares" value="${pre?.name||''}"></div><div class="row2"><div class="field"><label>Moneda</label><select id="fcur" onchange="updInvTypes()"><option${pre?.cur!=='USD'?' selected':''}>ARS</option><option${pre?.cur==='USD'?' selected':''}>USD</option></select></div><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" value="${pre?.amt||''}" inputmode="decimal" oninput="calcIntereses()"></div></div><div class="field"><label>Tipo</label><select id="ftype">${(pre?.cur==='USD'?ITYPES_USD:ITYPES_ARS).map(t=>`<option${pre?.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="field"><label>Fecha</label><input type="date" id="finvDate" value="${pre?.date||todayISO}"></div><div class="field"><label>Tasa % TNA (si aplica)</label><input type="number" id="frend" placeholder="0.0" value="${pre?.rend||''}" inputmode="decimal" oninput="calcIntereses()"></div><div id="interesesCalc" style="font-size:13px;color:var(--blu);text-align:center;font-weight:700;min-height:20px;margin-bottom:8px;padding:8px;background:rgba(59,158,255,.07);border-radius:10px"></div><button class="sh-btn" onclick="saveInv()">Guardar</button>${backBtn}`,
   deuda:(pre)=>`<div class="field"><label>Tipo de deuda</label><select id="ftype" onchange="onDeudaTipoChange()">${DTYPES.map(t=>`<option${pre?.type===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="field"><label>Descripción (opcional)</label><input type="text" id="fdescDeuda" placeholder="Ej: Tarjeta Galicia" value="${pre?.desc||''}"></div><div class="field"><label>Moneda</label><select id="fcur"><option${pre?.cur!=='USD'?' selected':''}>ARS</option><option${pre?.cur==='USD'?' selected':''}>USD</option></select></div><div id="cuotaDeudaFields"><div class="row2"><div class="field"><label>Valor cuota</label><input type="number" id="fquota" placeholder="0" value="${pre?.quota||''}" inputmode="decimal"></div><div class="field"><label>Total cuotas</label><input type="number" id="ftotal" placeholder="24" value="${pre?.total||''}" inputmode="numeric"></div></div><div class="row2"><div class="field"><label>Cuota actual</label><input type="number" id="fpaid" value="${pre?.paid||0}" inputmode="numeric"></div><div class="field"><label>Mes de esa cuota</label><input type="month" id="fpaidAsOf" value="${pre?.paidAsOf||localMonthKey(new Date())}"></div></div><div class="row2"><div class="field"></div><div class="field"><label>Próx. vencimiento</label><input type="date" id="fdue" value="${pre?.due||''}"></div></div></div><div id="deudaUnicaFields" style="display:none"><div class="field"><label>Monto total</label><input type="number" id="fmontoTotal" placeholder="0" value="${pre?.montoTotal||''}" inputmode="decimal"></div><div class="field"><label>Monto ya pagado</label><input type="number" id="fmontoPagado" placeholder="0" value="${pre?.montoPagado||0}" inputmode="decimal"></div></div><button class="sh-btn" onclick="saveDeuda()">Guardar</button>${backBtn}`,
   ahorro:(pre)=>`<div class="field"><label>Nombre del objetivo</label><input type="text" id="fname" placeholder="Ej: Viaje, Moto..." value="${pre?.name||''}"></div><div class="row2"><div class="field"><label>Moneda</label><select id="fcur"><option${pre?.cur!=='USD'?' selected':''}>ARS</option><option${pre?.cur==='USD'?' selected':''}>USD</option></select></div><div class="field"><label>Ya tengo</label><input type="number" id="fcurr" value="${pre?.curr||0}" inputmode="decimal"></div></div><div class="field"><label>Meta total (opcional)</label><input type="number" id="ftarget" placeholder="Sin meta fija" value="${pre?.target||''}" inputmode="decimal"></div><button class="sh-btn" onclick="saveAhorro()">Guardar</button>${backBtn}`,
