@@ -209,6 +209,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div style="font-size:11px;color:var(--mu);margin-top:6px;font-weight:600">Ver detalle →</div>
         </div>
       </div>
+      <button onclick="nuevoIngreso()" style="width:100%;margin-bottom:14px;background:var(--acc-dim);border:1px solid rgba(0,240,168,.25);border-radius:14px;padding:13px;font-size:13px;font-weight:800;color:var(--acc);cursor:pointer;letter-spacing:.2px">＋ Agregar ingreso</button>
       <!-- Detalle expandible -->
       <div id="dashDetail" style="display:none;margin-bottom:14px"></div>
       <!-- Gráfico 1: Ingresos vs Gastos (Nach) -->
@@ -305,7 +306,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
   </div>
   <nav class="bot-nav" style="overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;gap:0;padding-left:4px;padding-right:4px">
     <button class="nb active" onclick="goPage('inicio',this)" style="min-width:64px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</button>
-    <button class="nb" onclick="goPage('gastos',this)" style="min-width:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>Gastos</button>
+    <button class="nb" onclick="goPage('gastos',this)" style="min-width:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>Tarjetas</button>
     <button class="nb" onclick="goPage('inversiones',this)" style="min-width:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Inversión</button>
     <button class="nb" onclick="goPage('deudas',this)" style="min-width:56px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Deudas</button>
     <button class="nb" onclick="goPage('cotizaciones',this)" style="min-width:56px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 3 3 21 21 21"/><polyline points="7 16 11 12 15 14 21 8"/></svg>Cotiz.</button>
@@ -398,14 +399,14 @@ const ECATS=[
   {n:'Otro',i:'📦',c:'#556080',bg:'rgba(85,96,128,.13)'},
 ];
 const INGRESO_TIPOS=['Sueldo','Freelance','Bono','Alquiler cobrado','Venta','Otro ingreso'];
-const PAYS=['Efectivo','Débito','VISA Nach','MASTERCARD Nach','VISA Adic Nach','MC Adic Nach','Transferencia','Mercado Pago'];
-const CARDS=['VISA Nach','MASTERCARD Nach','VISA Adic Nach','MC Adic Nach'];
+const PAYS=['Efectivo','Débito','VISA Nach','MASTERCARD Nach','Transferencia','Mercado Pago'];
+const CARDS=['VISA Nach','MASTERCARD Nach'];
 const CARD_TIPOS=['Débito automático','Cuota','Gasto único'];
 const ITYPES_ARS=['Plazo Fijo','Fondo Común (FCI)','Acciones / Cedears','Cripto (ARS)','Bonos','Otro'];
 const ITYPES_USD=['Dólares Físicos','Cripto (USD)','Acciones Ext.','CEDEAR (USD)','Otro'];
 const DTYPES=['Préstamo Personal','Cuota Auto','Cuota Departamento','Alquiler','Lancha','Tarjetas','Auto','Deuda USD','Deuda no en curso','Otro'];
 
-const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],fijos:[],saldoHistorial:{},cardCfg:{'VISA Nach':{cierre:'',vto:''},'MASTERCARD Nach':{cierre:'',vto:''},'VISA Adic Nach':{cierre:'',vto:''},'MC Adic Nach':{cierre:'',vto:''}}};
+const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],fijos:[],saldoHistorial:{},cardCfg:{'VISA Nach':{cierre:'',vto:''},'MASTERCARD Nach':{cierre:'',vto:''}}};
 let S = JSON.parse(JSON.stringify(DEF));
 let syncing = false;
 
@@ -985,6 +986,12 @@ window.showDashDetail=function(tipo){
 // cargarla se crea un gasto normal con fijo:true, así sigue contando en los
 // totales, los gráficos y el detalle por método de pago como cualquier otro.
 var fijoMesDestino='';
+function nuevoIngreso(){
+  editingId=null;editingType=null;
+  el('shTitle').textContent='Nuevo ingreso';
+  el('shBody').innerHTML=forms.ingreso(null);
+  el('overlay').classList.add('open');
+}
 function nuevoFijo(mes){
   editingId=null;editingType='fijo';fijoMesDestino=mes;
   el('shTitle').textContent='Nuevo gasto fijo';
