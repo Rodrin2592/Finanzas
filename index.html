@@ -231,10 +231,10 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
       </div>
       <!-- Detalle expandible -->
       <div id="dashDetail" style="display:none;margin-bottom:14px"></div>
-      <!-- Gráfico 1: Ingresos vs Gastos (Nach + Euge) -->
+      <!-- Gráfico 1: Ingresos vs Gastos (Nach) -->
       <div class="chart-card">
         <div class="chart-title">Ingresos vs Gastos</div>
-        <div class="chart-sub">Ene — Dic 2026 · Nach + Euge</div>
+        <div class="chart-sub">Ene — Dic 2026 · Nach</div>
         <div style="display:flex;align-items:flex-start;gap:0">
           <div id="barScaleY" style="width:44px;flex-shrink:0;padding-right:6px;text-align:right;padding-top:0"></div>
           <div id="barChartScroll" style="flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;cursor:grab;user-select:none" onscroll="syncScrollbar(this)">
@@ -1280,18 +1280,14 @@ function renderGraficos(){
   Chart.defaults.color='#4e5d78';Chart.defaults.font={family:"'Inter',sans-serif",size:11};
   el('monthSelector').innerHTML=months.map(m=>`<div class="mpill${m===curChartMonth?' active':''}" onclick="setChartMonth('${m}')">${monthName(m)}</div>`).join('');
   const nachInc=months.map(m=>S.ingresos.filter(i=>itemMonthKey(i)===m&&i.quien==='yo').reduce((a,i)=>a+i.amt,0));
-  const eugeInc=months.map(m=>S.ingresos.filter(i=>itemMonthKey(i)===m&&i.quien==='ella').reduce((a,i)=>a+i.amt,0));
   const nachExp=months.map(m=>S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===m&&e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0));
-  const eugeExp=months.map(m=>S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===m&&e.quien==='ella').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0));
   if(barChartInst){barChartInst.destroy();barChartInst=null;}
   // Custom scrollable bar chart with Y scale
   const datasets=[
     {label:'Ing. Nach',data:nachInc,color:'#00f0a8'},
     {label:'Gas. Nach',data:nachExp,color:'#ff4f6b'},
-    {label:'Ing. Euge',data:eugeInc,color:'#b06cff'},
-    {label:'Gas. Euge',data:eugeExp,color:'#ffb830'},
   ];
-  const allVals=[...nachInc,...eugeInc,...nachExp,...eugeExp].filter(v=>v>0);
+  const allVals=[...nachInc,...nachExp].filter(v=>v>0);
   const maxVal=allVals.length?Math.max(...allVals)*1.18:100000;
   const chartH=160;const barW=13;const gap=3;const groupGap=14;
   const niceMax=v=>{const exp=Math.pow(10,Math.floor(Math.log10(v)));const f=v/exp;const n=f<=1.5?1.5:f<=3?3:f<=7?7:10;return n*exp;};
