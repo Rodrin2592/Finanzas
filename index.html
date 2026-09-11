@@ -69,14 +69,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 .pills::-webkit-scrollbar{display:none;}
 .pill{padding:8px 16px;border-radius:22px;font-size:12px;font-weight:700;border:1px solid var(--br);cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--mu);flex-shrink:0;transition:all .2s;letter-spacing:.1px;}
 .pill.active{background:var(--acc);color:#060910;border-color:var(--acc);box-shadow:0 0 20px var(--glow);}
-.week-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;}
-.week-bar::-webkit-scrollbar{display:none;}
-.wpill{padding:7px 13px;border-radius:11px;font-size:12px;font-weight:600;border:1px solid var(--br);cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--mu);flex-shrink:0;transition:all .2s;}
-.wpill.active{background:var(--s3);color:var(--tx);border-color:var(--acc);}
-.week-summary{background:var(--s2);border-radius:16px;padding:12px 16px;margin-bottom:12px;display:none;justify-content:space-between;border:1px solid var(--br);}
-.ws-item{text-align:center;}
-.ws-lbl{font-size:10px;color:var(--mu);margin-bottom:3px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
-.ws-val{font-size:17px;font-weight:800;}
 .inv-top{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .inv-sum{background:linear-gradient(135deg,var(--s1) 0%,var(--s2) 100%);border-radius:18px;padding:18px;border:1px solid var(--br);box-shadow:0 6px 24px rgba(0,0,0,.3);}
 .inv-sum-lbl{font-size:10px;color:var(--mu);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;}
@@ -254,15 +246,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
     <div class="page" id="page-gastos">
       <div id="gastosTabContent"></div>
     </div>
-    <div class="page" id="page-ingresos">
-      <div class="tabs" id="incTabs">
-        <div class="tab active" onclick="incTab('ingresos',this)">Ingresos</div>
-        <div class="tab" onclick="incTab('reintegros',this)">Reintegros</div>
-      </div>
-      <div class="week-bar" id="incWeekBar"></div>
-      <div class="week-summary" id="incWeekSummary"></div>
-      <div id="ingresosList"></div>
-    </div>
     <div class="page" id="page-inversiones">
       <div class="tabs" id="invTabs">
         <div class="tab active" onclick="invTab('ARS',this)">Pesos</div>
@@ -323,7 +306,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
   <nav class="bot-nav" style="overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;gap:0;padding-left:4px;padding-right:4px">
     <button class="nb active" onclick="goPage('inicio',this)" style="min-width:64px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</button>
     <button class="nb" onclick="goPage('gastos',this)" style="min-width:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>Gastos</button>
-    <button class="nb" onclick="goPage('ingresos',this)" style="min-width:66px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>Ingresos</button>
     <button class="nb" onclick="goPage('inversiones',this)" style="min-width:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Inversión</button>
     <button class="nb" onclick="goPage('deudas',this)" style="min-width:56px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Deudas</button>
     <button class="nb" onclick="goPage('cotizaciones',this)" style="min-width:56px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 3 3 21 21 21"/><polyline points="7 16 11 12 15 14 21 8"/></svg>Cotiz.</button>
@@ -508,8 +490,8 @@ const el=id=>document.getElementById(id);
 const v=id=>el(id)?.value.trim()||'';
 const vn=id=>parseFloat(el(id)?.value)||0;
 const todayISO=new Date().toISOString().slice(0,10);
-let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard='VISA Nach',curDaTab='deudas',curIncTab='ingresos',curDeudaTab='ARS';
-let curIncWeek='all',curChartMonth='';
+let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard='VISA Nach',curDaTab='deudas',curDeudaTab='ARS';
+let curChartMonth='';
 let selCat2='Comida',isRef=false,nextId=Date.now();
 let editingId=null,editingType=null;
 let barChartInst=null,pieChartInst=null,pieSortDesc=true;
@@ -518,21 +500,6 @@ function itemMonthKey(item){
   if(!item.date)return new Date().toISOString().slice(0,7);
   const d=item.date.includes('/')?item.date.split('/').reverse().join('-'):item.date;
   return d.slice(0,7);
-}
-function getWeekStart(d){const dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()-((dt.getDay()+6)%7));return dt;}
-function getWeekKey(d){return getWeekStart(d).toISOString().slice(0,10);}
-function buildWeekKeys(items){return[...new Set(items.map(i=>getWeekKey(new Date((i.date||todayISO).includes('/')?i.date.split('/').reverse().join('-'):i.date))))].sort().reverse();}
-function weekLabel(key){
-  const today=new Date();today.setHours(0,0,0,0);
-  const ws=getWeekStart(today);const kd=new Date(key+'T00:00:00');
-  const diff=Math.round((ws-kd)/(7*86400000));
-  if(diff===0)return'Esta semana';if(diff===1)return'Semana pasada';
-  const we=new Date(kd);we.setDate(we.getDate()+6);
-  return kd.toLocaleDateString('es-AR',{day:'numeric',month:'short'})+'-'+we.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
-}
-function filterByWeek(items,weekKey){
-  if(weekKey==='all')return items;
-  return items.filter(i=>getWeekKey(new Date((i.date||todayISO).includes('/')?i.date.split('/').reverse().join('-'):i.date))===weekKey);
 }
 function actBtns(type,id){return`<div class="tx-actions"><button class="tx-btn edit" onclick="editItem('${type}',${id})">editar</button><button class="tx-btn del" onclick="delItem('${type}',${id})">eliminar</button></div>`;}
 
@@ -879,7 +846,7 @@ window.showDashDetail=function(tipo){
     const otros=items.filter(i=>i.quien!=='yo');
     const intereses=S.investments.filter(i=>i.rend).reduce((a,i)=>{const r=i.rend/100/12;const val=i.cur==='USD'?i.amt*rate:i.amt;return a+val*r;},0);
     const refs=S.expenses.filter(e=>e.ref&&(itemMonthKey(e)===earnMonth||itemMonthKey(e)===thisMonth));
-    const row=i=>`<div class="tx-item"><div class="tx-ico" style="background:var(--acc-dim)">💼</div><div class="tx-body"><div class="tx-name">${i.desc}</div><div class="tx-sub">${i.tipo||'Ingreso'}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(i.amt)}</div></div></div>`;
+    const row=i=>`<div class="tx-item"><div class="tx-ico" style="background:var(--acc-dim)">💼</div><div class="tx-body"><div class="tx-name">${i.desc}</div><div class="tx-sub">${i.tipo||'Ingreso'}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(i.amt)}</div>${actBtns('ingresos',i.id)}</div></div>`;
     d.innerHTML=`<div class="card" onclick="event.stopPropagation()">
       <div class="subsec">👨 Nach<span class="subsec-r">${fmtS(nach.reduce((a,i)=>a+i.amt,0))}</span></div>${nach.length?nach.map(row).join(''):'<div class="empty" style="padding:8px 0">Sin ingresos</div>'}
       ${otros.length?`<div class="subsec" style="margin-top:10px">📌 Otros<span class="subsec-r">${fmtS(otros.reduce((a,i)=>a+i.amt,0))}</span></div>${otros.map(row).join('')}`:''}
@@ -1205,20 +1172,6 @@ function renderGastos(){
   container.innerHTML=cardTabsHtml+configBanner+closedSummary+openSummary;
 }
 
-function renderIngresos(){
-  if(curIncTab==='reintegros'){
-    const refs=S.expenses.filter(e=>e.ref);
-    const total=refs.reduce((a,e)=>a+(e.refAmt||e.amt),0);
-    el('incWeekBar').innerHTML='';
-    el('ingresosList').innerHTML=`<div class="card" style="margin-bottom:12px"><div style="font-size:11px;color:var(--mu);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Total reintegros</div><div style="font-size:22px;font-weight:600;color:var(--acc)">+${fmtS(total)}</div></div>`+(refs.length?'<div class="card">'+refs.map(e=>{const c=cat(e.cat);const refInfo=e.refPct?`${e.refPct}%${e.refMax?' · tope '+fmtS(e.refMax):''}`:'-';return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat} · ${refInfo}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(e.refAmt||e.amt)}</div>${actBtns('expenses',e.id)}</div></div>`;}).join('')+'</div>':'<div class="empty">Sin reintegros</div>');
-    return;
-  }
-  const wkeys=buildWeekKeys(S.ingresos);
-  const weekBarHtml=`<div class="week-bar" id="incWeekBar">${[{key:'all',label:'Todo'},...wkeys.map(k=>({key:k,label:weekLabel(k)}))].map(w=>`<div class="wpill${w.key===curIncWeek?' active':''}" onclick="setIncWeek('${w.key}')">${w.label}</div>`).join('')}</div>`;
-  let list=filterByWeek(S.ingresos,curIncWeek);
-  const total=list.reduce((a,i)=>a+i.amt,0);
-  el('ingresosList').innerHTML=weekBarHtml+`<div class="card" style="margin-bottom:12px"><div style="font-size:11px;color:var(--mu);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">${curIncWeek==='all'?'Total acumulado':'Total del período'}</div><div style="font-size:22px;font-weight:600;color:var(--acc)">${fmtS(total)}</div></div>`+(list.length?'<div class="card">'+list.map(e=>`<div class="tx-item"><div class="tx-ico" style="background:rgba(74,222,128,.13)">💼</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.tipo}${e.date?' · '+e.date.slice(0,10):''}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(e.amt)}</div>${actBtns('ingresos',e.id)}</div></div>`).join('')+'</div>':'<div class="empty">Sin ingresos</div>');
-}
 
 function renderInversiones(){
   const t=calcTotals();
@@ -1358,7 +1311,7 @@ function renderGraficos(){
   el('pieLegend').innerHTML=pieItems.map(item=>`<div class="legend-item"><div class="legend-dot" style="background:${item.col}"></div><span class="legend-name">${item.l}</span><span class="legend-val">${item.pct}%</span></div>`).join('');
 }
 
-function renderAll(){renderHero();renderHome();renderGastos();renderIngresos();renderInversiones();renderDeudas();}
+function renderAll(){renderHero();renderHome();renderGastos();renderInversiones();renderDeudas();}
 
 // ── COTIZACIONES ──────────────────────────────────
 var _cotizLastFetch=0;
@@ -1604,7 +1557,6 @@ function goPage(n,btn){
   if(fab)fab.classList.toggle('hidden',n==='inicio'||n==='cotizaciones');
   if(n==='inicio')setTimeout(renderGraficos,50);
   else if(n==='gastos')renderGastos();
-  else if(n==='ingresos')renderIngresos();
   else if(n==='inversiones')renderInversiones();
   else if(n==='deudas')renderDeudas();
   else if(n==='cotizaciones')fetchCotizaciones();
@@ -1612,10 +1564,8 @@ function goPage(n,btn){
 function heroTab(t,btn){curHeroTab=t;document.querySelectorAll('#htabs .htab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderHero();}
 function invTab(t,btn){curInvTab=t;document.querySelectorAll('#invTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInversiones();}
 function cardTab(t){curCard=t;renderGastos();}
-function incTab(t,btn){curIncTab=t;document.querySelectorAll('#incTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');curIncWeek='all';renderIngresos();}
 function deudaTab(t,btn){curDeudaTab=t;document.querySelectorAll('#deudasTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderDeudas();}
 function daTab(t,btn){curDaTab=t;document.querySelectorAll('#daTabs .tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderDeudas();}
-function setIncWeek(k){curIncWeek=k;renderIngresos();}
 function syncScrollbar(el){
   const thumb=document.getElementById('barScrollThumb');
   if(!thumb)return;
@@ -1697,7 +1647,6 @@ function openSheet(){
     const map={
       inicio:{t:'Nuevo ingreso',f:'ingreso'},
       gastos:{t:'Nuevo gasto',f:'gasto'},
-      ingresos:{t:'Nuevo ingreso',f:'ingreso'},
       inversiones:{t:'Nueva inversión',f:'inversion'},
       deudas:{t:'Nueva deuda',f:'deuda'},
     };
