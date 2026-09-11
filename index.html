@@ -600,21 +600,6 @@ function dashNavMonth(dir){
   renderHome();
 }
 
-function calcArrastreHasta(untilMonth){
-  const rate=S.settings.usdRate||1;
-  let arrastre=0;
-  // Start from May 2026 — ignore Jan-Apr as they have no meaningful data
-  const startMonth='2026-05';
-  for(let m=5;m<=12;m++){
-    const key='2026-'+String(m).padStart(2,'0');
-    if(key>=untilMonth)break;
-    const ing=S.ingresos.filter(i=>itemMonthKey(i)===key).reduce((a,i)=>a+i.amt,0);
-    const ref=S.expenses.filter(e=>e.ref&&itemMonthKey(e)===key).reduce((a,e)=>a+(e.refAmt||e.amt),0);
-    const gas=S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===key).reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-    if(ing>0||gas>0)arrastre+=(ing+ref)-gas;
-  }
-  return arrastre;
-}
 
 function isCurrentBillingPeriod(expense, earnMonth, thisMonth){
   const pay=expense.pay||'';
@@ -695,8 +680,6 @@ function renderHome(){
   const finLabel=document.querySelector('[data-label="fin-mes"]');
   if(finLabel)finLabel.textContent=`🌕 Disponible fin de ${_earningName}`;
 
-  // Arrastre de meses anteriores al earnMonth
-  const arrastre=calcArrastreHasta(earnMonth);
 
   // INGRESOS FIN DE MES: solo sueldos de earnMonth (fin de abril)
   // El incentivado (sueldo del 15) va solo a mitad de mes, NO se suma acá
@@ -740,8 +723,9 @@ function renderHome(){
   const totalGastos=gasMes+deudaCuotas+debitosAuto;
 
   // ── DISPONIBLE FIN DE MES ──
-  const dispFin=totalIngresos-totalGastos-invMes+arrastre;
-  const baseTotal=totalIngresos+Math.max(0,arrastre);
+  // Cada mes se mide solo: no se suma ni se resta lo que sobró o faltó antes.
+  const dispFin=totalIngresos-totalGastos-invMes;
+  const baseTotal=totalIngresos;
   const pctFin=baseTotal>0?Math.min(100,Math.round((totalGastos+invMes)/baseTotal*100)):0;
 
   // ── MITAD DE MES: el adelanto del 15 contra la MASTERCARD del perfil ──
@@ -760,13 +744,10 @@ function renderHome(){
   }).reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
   const debitosMC=(S.debitos||[]).filter(d=>d.card===PERFIL.master).reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
   const totalMC=gasMitad+debitosMC;
-  // ¿Alcanza el incentivado para cubrir la MC?
+  // El adelanto se mide contra la MASTERCARD de este mes y nada más:
+  // no se completa con lo que haya sobrado en el disponible de fin de mes.
   const deficit=totalMC-ingAdelanto;
-  const necesitaDisponible=deficit>0;
-  // Disponible acumulado hasta acá (sin contar el incentivado)
-  const disponibleAcumulado=Math.max(0,dispFin);
-  const alcanzaConDisponible=disponibleAcumulado>=deficit;
-  const saldoMitad=ingAdelanto-totalMC+(necesitaDisponible&&alcanzaConDisponible?deficit:0);
+  const faltaPlata=deficit>0;
   const baseMitad=ingAdelanto;
   const pctMitad=baseMitad>0?Math.min(100,Math.round(totalMC/baseMitad*100)):totalMC>0?100:0;
 
@@ -801,7 +782,7 @@ function renderHome(){
   S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth).forEach(e=>{
     if(ps['fijo_'+e.id])yaAbonado+=(e.cur==='USD'?e.amt*rate:e.amt);
   });
-  const dispTransitorio=totalIngresos-yaAbonado+arrastre;
+  const dispTransitorio=totalIngresos-yaAbonado;
 
   // UI fin de mes
   const isNeg=dispFin<0;
@@ -812,7 +793,6 @@ function renderHome(){
   const pctEl=el('dashPct');if(pctEl)pctEl.textContent=pctFin+'%';
   const ingTotEl=el('dashIngTotal');
   let ingLabel=fmtS(totalIngresos);
-  if(arrastre!==0)ingLabel+=arrastre>0?' + '+fmtS(arrastre)+' arrastre':' − '+fmtS(Math.abs(arrastre))+' arrastre';
   if(invMes>0)ingLabel+=' − '+fmtS(invMes)+' inv.';
   if(ingTotEl)ingTotEl.textContent=ingLabel;
   // Disponible transitorio
@@ -824,7 +804,7 @@ function renderHome(){
   }
 
   // UI mitad de mes
-  const isNegMitad=ingAdelanto<totalMC&&!alcanzaConDisponible;
+  const isNegMitad=ingAdelanto<totalMC;
   const colM=isNegMitad?'var(--red)':pctMitad>100?'var(--gld)':'var(--blu)';
   const mitadEl=el('dashDisponibleMitad');
   if(mitadEl){
@@ -835,14 +815,8 @@ function renderHome(){
   const pctMEl=el('dashPctMitad');if(pctMEl)pctMEl.textContent=pctMitad+'%';
   const ingMEl=el('dashIngMitad');
   if(ingMEl){
-    let mitadLabel=`Incentivado: ${fmtS(ingAdelanto)}`;
-    if(necesitaDisponible){
-      if(alcanzaConDisponible){
-        mitadLabel+=` · ⚠️ Usá ${fmtS(deficit)} del disponible`;
-      } else {
-        mitadLabel+=` · ❌ Faltan ${fmtS(deficit-disponibleAcumulado)} — disponible insuficiente`;
-      }
-    }
+    let mitadLabel=`Adelanto: ${fmtS(ingAdelanto)}`;
+    if(faltaPlata)mitadLabel+=` · ❌ Faltan ${fmtS(deficit)}`;
     ingMEl.textContent=mitadLabel;
   }
 
