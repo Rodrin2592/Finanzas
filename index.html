@@ -800,14 +800,7 @@ window.showDashDetail=function(tipo){
       if(isCard) return isCurrentBillingPeriod(e,thisMonth);
       return itemMonthKey(e)===thisMonth;
     });
-    const deudaList=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1));
-    const debitosList=(S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master));
     const nachGasTotal=items.filter(e=>e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-    // Group by payment method
-    const payGroups={};
-    items.forEach(e=>{const p=e.pay||'Sin método';if(!payGroups[p])payGroups[p]=[];payGroups[p].push(e);});
-    const row=e=>{const c=cat(e.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat}${e.pay?' · '+e.pay:''}${e.cardTipo==='Cuota'&&e.cuotaNum?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''}</div></div><div class="tx-right" style="display:flex;align-items:center;gap:6px"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('exp_'+e.id)}</div></div>`;};
-
 
     // Person cards - same logic as old toggleDisponibleDetail
     const nachIng2=S.ingresos.filter(i=>(itemMonthKey(i)===thisMonth)&&i.quien==='yo').reduce((a,i)=>a+i.amt,0);
@@ -863,38 +856,6 @@ window.showDashDetail=function(tipo){
     html+=personCard2(PERFIL.emoji,PERFIL.nombre,nachIng2,nachGasTotal,nachRef2,nachDisp2,'var(--acc)');
     // Compromisos compartidos
     html+=deudasHtml;
-    // Payment method breakdown
-    html+=`<div style="font-size:11px;font-weight:800;color:#6b7fa0;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px">Detalle por método de pago</div>`;
-
-    // Cash/debit first (no collapse, just list)
-    const cashKeys=Object.keys(payGroups).filter(p=>!p.includes('VISA')&&!p.includes('MASTERCARD')&&!p.includes('MC '));
-    cashKeys.forEach(pay=>{
-      const exps=payGroups[pay];
-      const total=exps.reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-      html+=`<div class="subsec">${pay}<span class="subsec-r">${fmtS(total)}</span></div>`;
-      html+=exps.map(row).join('');
-    });
-
-    // Cards: collapsible with pay button on header only
-    const cardKeys=Object.keys(payGroups).filter(p=>p.includes('VISA')||p.includes('MASTERCARD')||p.includes('MC '));
-    cardKeys.forEach(pay=>{
-      const exps=payGroups[pay]||[];
-      const cardDebs=debitosList.filter(d=>d.card===pay);
-      const total=exps.reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0)+cardDebs.reduce((a,dd)=>a+(dd.cur==='USD'?dd.amt*rate:dd.amt),0);
-      const collapseId='col_'+pay.replace(/[^a-zA-Z0-9]/g,'_');
-      html+=`<div class="subsec" style="align-items:center;cursor:pointer" onclick="const _cel=document.getElementById('${collapseId}');_cel.style.display=_cel.style.display==='none'?'block':'none'">
-        <span>▶ ${pay}</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span class="subsec-r">${fmtS(total)}</span>
-          ${payBtn('card_'+pay)}
-        </div>
-      </div>`;
-      html+=`<div id="${collapseId}" style="display:none">`;
-      html+=exps.map(e=>{const c=cat(e.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.cat}${e.pay?' · '+e.pay:''}${e.cardTipo==='Cuota'&&e.cuotaNum?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div></div></div>`;}).join('');
-      cardDebs.forEach(dd=>{html+=`<div class="tx-item"><div class="tx-ico" style="background:var(--pur-dim)">🔄</div><div class="tx-body"><div class="tx-name">${dd.desc}</div><div class="tx-sub">Débito automático</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--pur)">-${dd.cur==='USD'?fmtU(dd.amt):fmtS(dd.amt)}</div></div></div>`;});
-      html+=`</div>`;
-    });
-
     // Inversiones del período (sin rendimiento = compra de dólares, acciones, etc.)
     const invItems=S.investments.filter(i=>{
       if(i.rend)return false;
