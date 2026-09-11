@@ -171,12 +171,12 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
         </div>
         <!-- Período 1: Fin de mes (principal) -->
         <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
-          <div data-label="fin-mes" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🌕 Disponible fin de mes</div>
+          <div data-label="fin-mes" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🌕 Disponible hasta 15 del mes</div>
           <div id="dashDisponible" style="font-size:28px;font-weight:900;letter-spacing:-1px;margin-bottom:4px">$0</div>
         </div>
         <!-- Período 2: Mitad de mes (solo si el perfil cobra un adelanto) -->
         <div id="bloqueMitadMes">
-          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px"><span data-label="mitad-mes">🌓 Gastos a pagar el 15</span></div>
+          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px"><span data-label="mitad-mes">🌓 Disponible a partir del 15 del mes</span></div>
           <div id="dashDisponibleMitad" style="font-size:22px;font-weight:900;letter-spacing:-1px;margin-bottom:8px">$0</div>
         </div>
         <!-- Período 3: los dos anteriores juntos -->
@@ -653,10 +653,6 @@ function renderHome(){
   const nextBtn=el('dashNavNext');
   const maxKey=localMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()+12,1));
   if(nextBtn)nextBtn.style.opacity=thisMonth>=maxKey?'0.3':'1';
-  const mitadLbl=document.querySelector('[data-label="mitad-mes"]');
-  if(mitadLbl)mitadLbl.textContent=`🌓 Gastos a pagar el 15 (${PERFIL.master})`;
-  const finLabel=document.querySelector('[data-label="fin-mes"]');
-  if(finLabel)finLabel.textContent=`🌕 Disponible de ${_livingName}`;
 
 
   // Un ingreso pertenece únicamente al mes de su fecha: el sueldo es variable
