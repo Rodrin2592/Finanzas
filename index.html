@@ -510,6 +510,13 @@ const cat=name=>ECATS.find(c=>c.n===name)||ECATS[7];
 const el=id=>document.getElementById(id);
 const v=id=>el(id)?.value.trim()||'';
 const vn=id=>parseFloat(el(id)?.value)||0;
+// Fecha corta para las filas: acepta 2026-09-11 y 11/09/2026.
+const fmtFecha=f=>{
+  if(!f)return'';
+  const d=String(f).includes('/')?String(f).split('/').reverse().join('-'):String(f);
+  const p=d.slice(0,10).split('-');
+  return p.length===3?p[2]+'/'+p[1]:'';
+};
 const todayISO=new Date().toISOString().slice(0,10);
 let curPage='inicio',curInvTab='ARS',curHeroTab='sueldo',curCard=PERFIL.visa,curDaTab='deudas',curDeudaTab='ARS';
 let curChartMonth='';
@@ -1066,8 +1073,8 @@ function renderGastos(){
   const openTotUSD=openExp.filter(i=>i.cur==='USD').reduce((a,i)=>a+i.amt,0)+debs.filter(d=>d.cur==='USD').reduce((a,d)=>a+d.amt,0);
 
   const bc=curCard.includes('VISA')?'var(--blu)':'var(--gld)';
-  const iRow=e=>{const c=cat(e.cat);const cs=e.cardTipo==='Cuota'&&e.cuotaNum?`Cuota ${e.cuotaNum}/${e.cuotaTotal} · `:'';const da=e.cur==='USD'?fmtU(e.amt)+' (≈'+fmtS(e.amt*rate)+')':fmtS(e.amt);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${cs}${e.cat}</div></div><div class="tx-right"><div class="tx-amt" style="color:${e.cur==='USD'?'var(--blu)':'var(--red)'}">${da}</div>${actBtns('expenses',e.id)}</div></div>`;};
-  const debRow=d=>{const c=cat(d.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${d.desc}</div><div class="tx-sub">${d.cat} · Mensual 🔄</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--pur)">${d.cur==='USD'?fmtU(d.amt):fmtS(d.amt)}</div><div class="tx-actions"><button class="tx-btn edit" onclick="editDebito(${d.id})">editar</button><button class="tx-btn del" onclick="delDebito(${d.id})">eliminar</button></div></div></div>`;};
+  const iRow=e=>{const c=cat(e.cat);const cs=e.cardTipo==='Cuota'&&e.cuotaNum?`Cuota ${e.cuotaNum}/${e.cuotaTotal} · `:'';const da=e.cur==='USD'?fmtU(e.amt)+' (≈'+fmtS(e.amt*rate)+')':fmtS(e.amt);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${cs}${e.cat}${e.date?' · '+fmtFecha(e.date):''}</div></div><div class="tx-right"><div class="tx-amt" style="color:${e.cur==='USD'?'var(--blu)':'var(--red)'}">${da}</div>${actBtns('expenses',e.id)}</div></div>`;};
+  const debRow=d=>{const c=cat(d.cat);return`<div class="tx-item"><div class="tx-ico" style="background:${c.bg}">${c.i}</div><div class="tx-body"><div class="tx-name">${d.desc}</div><div class="tx-sub">${d.cat} · Mensual 🔄${d.date?' · desde '+fmtFecha(d.date):''}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--pur)">${d.cur==='USD'?fmtU(d.amt):fmtS(d.amt)}</div><div class="tx-actions"><button class="tx-btn edit" onclick="editDebito(${d.id})">editar</button><button class="tx-btn del" onclick="delDebito(${d.id})">eliminar</button></div></div></div>`;};
   const sec=(t2,arr,col,rows)=>`<div class="subsec" style="color:${col}">${t2}<span class="subsec-r">${arr.length}</span></div>${arr.length?'<div class="card">'+rows.join('')+'</div>':'<div class="empty" style="padding:8px 0">Ninguno</div>'}`;
 
   const cardTabsHtml=`<div style="overflow-x:auto;display:flex;gap:6px;margin-bottom:14px;scrollbar-width:none">${CARDS.map(c=>`<div class="tab${curCard===c?' active':''}" onclick="cardTab('${c}',this)" style="font-size:10px;white-space:nowrap;padding:8px 10px;border-radius:10px;background:${curCard===c?'var(--s3)':'var(--s2)'};color:${curCard===c?'var(--tx)':'var(--mu)'};cursor:pointer;border:1px solid var(--br)">${c}</div>`).join('')}</div>`;
@@ -1603,7 +1610,7 @@ function openSheet(){
 }
 window.openDebitoForm=function(){
   el('shTitle').textContent='Nuevo débito automático';
-  el('shBody').innerHTML=`<div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Netflix, Spotify..."></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" inputmode="decimal"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS">ARS</option><option value="USD">USD</option></select></div></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><button class="sh-btn" onclick="saveDebito()">Guardar</button>`;
+  el('shBody').innerHTML=`<div class="field"><label>Descripción</label><input type="text" id="fdesc" placeholder="Ej: Netflix, Spotify..."></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" placeholder="0" inputmode="decimal"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS">ARS</option><option value="USD">USD</option></select></div></div><div class="field"><label>Fecha</label><input type="date" id="fdebFecha" value="${todayISO}"></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><button class="sh-btn" onclick="saveDebito()">Guardar</button>`;
   renderCatGrid();
 }
 window.openGastoTarjeta=function(){
@@ -1761,7 +1768,7 @@ function saveGasto(){
 }
 function saveDebito(){
   const desc=v('fdesc'),amt=vn('famt');if(!desc||!amt)return alert('Completá descripción y monto');
-  const obj={id:editingId||nextId++,desc,amt,cur:v('fcurG')||'ARS',cat:selCat2,card:curCard,quien:'yo'};
+  const obj={id:editingId||nextId++,desc,amt,cur:v('fcurG')||'ARS',cat:selCat2,card:curCard,date:v('fdebFecha')||todayISO,quien:'yo'};
   if(editingId){const i=(S.debitos||[]).findIndex(x=>x.id===editingId);if(i>=0)S.debitos[i]=obj;}else{if(!S.debitos)S.debitos=[];S.debitos.push(obj);}
   save();renderAll();closeSheet();
 }
@@ -1770,7 +1777,7 @@ window.editDebito=function(id){
   const d=S.debitos.find(x=>x.id===id);if(!d)return;
   selCat2=d.cat||'Comida';
   el('shTitle').textContent='Editar débito';
-  el('shBody').innerHTML=`<div class="field"><label>Descripción</label><input type="text" id="fdesc" value="${d.desc}"></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" value="${d.amt}" inputmode="decimal"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS"${d.cur!=='USD'?' selected':''}>ARS</option><option value="USD"${d.cur==='USD'?' selected':''}>USD</option></select></div></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><button class="sh-btn" onclick="saveDebito()">Guardar</button>`;
+  el('shBody').innerHTML=`<div class="field"><label>Descripción</label><input type="text" id="fdesc" value="${d.desc}"></div><div class="row2"><div class="field"><label>Monto</label><input type="number" id="famt" value="${d.amt}" inputmode="decimal"></div><div class="field"><label>Moneda</label><select id="fcurG"><option value="ARS"${d.cur!=='USD'?' selected':''}>ARS</option><option value="USD"${d.cur==='USD'?' selected':''}>USD</option></select></div></div><div class="field"><label>Fecha</label><input type="date" id="fdebFecha" value="${d.date||todayISO}"></div><div class="field"><label>Categoría</label><div id="catGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:2px"></div></div><button class="sh-btn" onclick="saveDebito()">Guardar</button>`;
   el('overlay').classList.add('open');renderCatGrid();
 }
 window.delDebito=function(id){if(!confirm('¿Eliminar débito?'))return;S.debitos=(S.debitos||[]).filter(x=>x.id!==id);save();renderAll();}
