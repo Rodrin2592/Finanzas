@@ -307,7 +307,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-11 23:45';
+const VERSION='2026-09-11 23:54';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -1851,18 +1851,19 @@ function saveGasto(){
   const refAmt=isRef&&refPct?Math.min(amt*refPct/100,refMax||Infinity):isRef?amt:null;
   const cur=v('fcurG')||'ARS';const cardTipo=ic?v('fcardTipo'):null;
   const cuotaTotal=cardTipo==='Cuota'?parseInt(v('fcuotaTotal'))||1:null;
+  const cuotaNum=cardTipo==='Cuota'?parseInt(v('fcuotaNum'))||1:null;
   const rawDate=v('fdate')||todayISO;
   // For card expenses, check if card already closed this month
   const baseDate=ic&&!editingId?getCardBillingDate(pay,rawDate):rawDate;
   if(cardTipo==='Cuota'&&cuotaTotal>1&&!editingId){
-    // Auto-generate one entry per month starting from billing period
-    for(let i=1;i<=cuotaTotal;i++){
-      const cuotaDate=sumarMeses(baseDate,i-1);
+    // Se cargan las cuotas que faltan, desde la que indicaste: una compra que
+    // ya va por la 4 de 4 no vuelve a arrancar de la 1.
+    for(let i=Math.min(cuotaNum||1,cuotaTotal);i<=cuotaTotal;i++){
+      const cuotaDate=sumarMeses(baseDate,i-(cuotaNum||1));
       S.expenses.unshift({id:nextId++,desc,amt,cur,cat:selCat2,pay,ref:false,refPct:null,refMax:null,refAmt:null,cardTipo,cuotaNum:i,cuotaTotal,date:cuotaDate,quien:'yo'});
     }
   } else {
-    const cuotaNum=cardTipo==='Cuota'?parseInt(v('fcuotaNum'))||1:null;
-    const shared=el('sharedToggle')?.classList.contains('on')||false;
+      const shared=el('sharedToggle')?.classList.contains('on')||false;
     const obj={id:editingId||nextId++,desc,amt,cur,cat:selCat2,pay,ref:isRef,refPct:isRef&&refPct?refPct:null,refMax:isRef&&refMax?refMax:null,refAmt,cardTipo,cuotaNum,cuotaTotal,date:baseDate,quien:'yo',shared};
     if(editingId){const i=S.expenses.findIndex(x=>x.id===editingId);if(i>=0)S.expenses[i]=obj;}else{S.expenses.unshift(obj);}
   }
