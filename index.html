@@ -730,10 +730,13 @@ function renderHome(){
     const day=parseInt(ds.includes('/')?ds.split('/')[0]:ds.split('-')[2])||16;
     return day<=15; // solo el incentivado
   }).reduce((a,i)=>a+i.amt,0);
+  // La MASTERCARD se imputa por su resumen, igual que el resto de las
+  // tarjetas: un consumo del 11 con cierre el 10 entra en el resumen
+  // siguiente. Antes se miraba el mes de la fecha del gasto, así que caía
+  // un mes antes de cuando realmente se paga.
   const gasMitad=S.expenses.filter(e=>{
     if(e.ref||e.pay!==PERFIL.master)return false;
-    const mk=itemMonthKey(e);
-    return mk===thisMonth;
+    return isCurrentBillingPeriod(e,thisMonth);
   }).reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
   const debitosMC=(S.debitos||[]).filter(d=>d.card===PERFIL.master).reduce((a,d)=>a+(d.cur==='USD'?d.amt*rate:d.amt),0);
   const totalMC=gasMitad+debitosMC;
