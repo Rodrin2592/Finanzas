@@ -172,22 +172,15 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           </div>
           <button onclick="dashNavMonth(1)" id="dashNavNext" style="background:rgba(255,255,255,.06);border:none;border-radius:10px;width:36px;height:36px;color:#edf2ff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">›</button>
         </div>
-        <!-- Período 1: Fin de mes (principal) -->
-        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
-          <div data-label="fin-mes" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🌕 Disponible hasta 15 del mes</div>
-          <div id="dashDisponible" style="font-size:28px;font-weight:900;letter-spacing:-1px;margin-bottom:4px">$0</div>
+        <!-- Un disponible a la vez, elegido con las solapas -->
+        <div class="tabs" id="dispTabs" style="margin-bottom:12px">
+          <div class="tab" onclick="dispTab('hasta',this)">Hasta el 15</div>
+          <div class="tab" onclick="dispTab('desde',this)">Desde el 15</div>
+          <div class="tab active" onclick="dispTab('completo',this)">Completo</div>
         </div>
-        <!-- Período 2: Mitad de mes (solo si el perfil cobra un adelanto) -->
-        <div id="bloqueMitadMes">
-          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px"><span data-label="mitad-mes">🌓 Disponible a partir del 15 del mes</span></div>
-          <div id="dashDisponibleMitad" style="font-size:22px;font-weight:900;letter-spacing:-1px;margin-bottom:8px">$0</div>
-        </div>
-        <!-- Período 3: los dos anteriores juntos -->
-        <div id="bloqueTotalMes" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07)">
-          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">💰 Disponible del mes completo</div>
-          <div id="dashDisponibleTotal" style="font-size:26px;font-weight:900;letter-spacing:-1px;margin-bottom:5px">$0</div>
-          <div id="dashTotalDetalle" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
-        </div>
+        <div id="dispLabel" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">💰 Disponible del mes completo</div>
+        <div id="dashDisponible" style="font-size:30px;font-weight:900;letter-spacing:-1px;margin-bottom:5px">$0</div>
+        <div id="dispDetalle" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
       </div>
       <div class="dash-stats">
         <div class="dash-stat" onclick="showDashDetail('ingresos')" style="cursor:pointer">
@@ -665,6 +658,35 @@ function currentCuota(d, refMonth){
   return Math.max(1, Math.min(paid+diff, d.total||999));
 }
 
+// Disponible: tres números, uno visible a la vez.
+let curDispTab='completo';
+let dispValores={hasta:0,desde:0,completo:0};
+const conSigno=n=>(n<0?'−':'')+fmtS(Math.abs(n));
+function dispTab(t,btn){
+  curDispTab=t;
+  document.querySelectorAll('#dispTabs .tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  pintarDisponible();
+}
+function pintarDisponible(){
+  // Sin adelanto hay un solo disponible: no hay solapas ni desglose.
+  const tab=PERFIL.adelanto?curDispTab:'hasta';
+  const titulos={
+    hasta:PERFIL.adelanto?'🌕 Disponible hasta 15 del mes':'🌕 Disponible del mes',
+    desde:'🌓 Disponible a partir del 15 del mes',
+    completo:'💰 Disponible del mes completo',
+  };
+  const val=dispValores[tab]||0;
+  const lbl=el('dispLabel');if(lbl)lbl.textContent=titulos[tab];
+  const num=el('dashDisponible');
+  if(num){num.textContent=conSigno(val);num.style.color=val<0?'var(--red)':'var(--acc)';}
+  const det=el('dispDetalle');
+  if(det){
+    det.textContent=(PERFIL.adelanto&&tab==='completo')
+      ?`Hasta el 15 ${conSigno(dispValores.hasta)} · Desde el 15 ${conSigno(dispValores.desde)}`
+      :'';
+  }
+}
 function renderHome(){
   const t=calcTotals();
   const nowMonth=localMonthKey(new Date());
@@ -748,33 +770,13 @@ function renderHome(){
   if(!S._payStatus)S._payStatus={};
   if(!S._payStatus[thisMonth])S._payStatus[thisMonth]={};
 
-  // UI fin de mes
-  const isNeg=dispFin<0;
-  const dispColor=isNeg?'var(--red)':'var(--acc)';
-  const dispEl=el('dashDisponible');
-  if(dispEl){dispEl.textContent=(isNeg?'−':'')+fmtS(Math.abs(dispFin));dispEl.style.color=dispColor;}
-
-  // UI mitad de mes
-  const mitadEl=el('dashDisponibleMitad');
-  if(mitadEl){
-    mitadEl.textContent=(ingAdelanto<totalMC?'−':'')+fmtS(Math.abs(ingAdelanto-totalMC));
-    mitadEl.style.color=ingAdelanto>=totalMC?'var(--acc)':'var(--red)';
-  }
-
-  // Los dos disponibles juntos: lo que te queda del mes completo.
-  const dispTotal=dispFin+(PERFIL.adelanto?saldoMitad:0);
-  const totalEl=el('dashDisponibleTotal');
-  if(totalEl){
-    const isNegTot=dispTotal<0;
-    totalEl.textContent=(isNegTot?'−':'')+fmtS(Math.abs(dispTotal));
-    totalEl.style.color=isNegTot?'var(--red)':'var(--acc)';
-  }
-  const detEl=el('dashTotalDetalle');
-  if(detEl){
-    detEl.textContent=PERFIL.adelanto
-      ?`Fin de mes ${(dispFin<0?'−':'')+fmtS(Math.abs(dispFin))} · Mitad de mes ${(saldoMitad<0?'−':'')+fmtS(Math.abs(saldoMitad))}`
-      :'';
-  }
+  // Se guardan los tres y se dibuja el de la solapa elegida.
+  dispValores={
+    hasta:dispFin,
+    desde:PERFIL.adelanto?saldoMitad:0,
+    completo:dispFin+(PERFIL.adelanto?saldoMitad:0),
+  };
+  pintarDisponible();
   // El recuadro de arriba muestra TODO lo que entró en el mes,
   // incluido el adelanto del 15, que no suma al disponible de fin de mes.
   el('dashIngresos').textContent=fmtS(totalIngresos+(PERFIL.adelanto?ingAdelanto:0));
@@ -1796,13 +1798,8 @@ function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un n
 
 // INIT
 aplicarTema(PERFIL.tema);
-// Sin adelanto hay un solo disponible, así que el título no habla del 15.
-const tituloFin=document.querySelector('[data-label="fin-mes"]');
-if(tituloFin&&!PERFIL.adelanto)tituloFin.textContent='🌕 Disponible del mes';
-const bloqueMitad=el('bloqueMitadMes');
-if(bloqueMitad&&!PERFIL.adelanto)bloqueMitad.style.display='none';
-const bloqueTotal=el('bloqueTotalMes');
-if(bloqueTotal&&!PERFIL.adelanto)bloqueTotal.style.display='none';
+const solapasDisp=el('dispTabs');
+if(solapasDisp&&!PERFIL.adelanto)solapasDisp.style.display='none';
 const chipPerfil=el('perfilChip');
 if(chipPerfil){
   // Con link directo no se ofrece cambiar de perfil
