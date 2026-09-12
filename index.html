@@ -307,7 +307,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-11 23:38';
+const VERSION='2026-09-11 23:45';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -953,22 +953,26 @@ function nuevoIngreso(fecha){
   el('overlay').classList.add('open');
 }
 // Quincena de un ingreso: hasta el 15 es el adelanto, después el sueldo.
-// A qué mes pertenece un ingreso y con cuál de las dos quincenas entra.
-// El sueldo se cobra a fin de mes pero es el del mes siguiente: el del 30
-// de agosto es con el que vivís septiembre. El adelanto del 15, en cambio,
-// se usa en su propio mes.
+// Dónde entra cada ingreso, según el día en que se cobra:
+//   1 al 14  -> "hasta el 15" de ese mismo mes (ya lo tenés antes del 15)
+//   15 al 24 -> "desde el 15" de ese mes (el adelanto)
+//   25 en adelante -> "hasta el 15" del mes SIGUIENTE (el sueldo de fin de
+//                     mes es con el que vivís el mes que viene)
+const DIA_ADELANTO=15;  // desde este día el ingreso es el de la segunda quincena
+const DIA_SUELDO=25;    // desde este día ya es el sueldo del mes siguiente
 function diaDelIngreso(i){
   const ds=i.date||'';
   return parseInt(ds.includes('/')?ds.split('/')[0]:ds.split('-')[2])||1;
 }
 function mesDelIngreso(i){
   const mk=itemMonthKey(i);
-  if(diaDelIngreso(i)<=15)return mk;
+  if(diaDelIngreso(i)<DIA_SUELDO)return mk;
   const [y,m]=mk.split('-').map(Number);
   return localMonthKey(new Date(y,m,1));
 }
 function quincenaDe(i){
-  return diaDelIngreso(i)>15?'fin':'quince';
+  const d=diaDelIngreso(i);
+  return (d>=DIA_ADELANTO&&d<DIA_SUELDO)?'quince':'fin';
 }
 // Recarga saltando el caché: agrega un parámetro que el navegador no tiene
 // guardado, así se ve obligado a pedir el archivo de nuevo.
@@ -987,10 +991,12 @@ function abrirIngresos(quincena){
   const [y,m]=mes.split('-').map(Number);
   // El adelanto se cobra el 15 del propio mes; el sueldo, a fin del anterior.
   const fecha=esQuince
-    ?mes+'-15'
+    ?mes+'-'+String(DIA_ADELANTO).padStart(2,'0')
     :localDateISO(new Date(y,m-1,0));
   const titulo=esQuince?'Sueldo del 15':(PERFIL.adelanto?'Sueldo hasta el 15':'Sueldo del mes');
-  const nota=esQuince?'':'Se cobra a fin del mes anterior: es el sueldo con el que vivís este mes.';
+  const nota=esQuince
+    ?'Lo que cobrás del 15 al 24.'
+    :'El sueldo de fin del mes anterior (del 25 en adelante) y lo que cobres antes del 15 de este mes.';
   el('shTitle').textContent=titulo;
   const filas=lista.length?lista.map(i=>`<div class="tx-item"><div class="tx-ico" style="background:var(--acc-dim)">💼</div>`
     +`<div class="tx-body"><div class="tx-name">${i.desc}</div><div class="tx-sub">${(i.tipo||'Ingreso')} · ${fmtFecha(i.date)}</div></div>`
