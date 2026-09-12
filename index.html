@@ -11,11 +11,6 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<!-- La app es un solo archivo que cambia seguido: que el navegador
-     revalide en vez de servir una copia vieja de la pantalla de inicio. -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Mis Finanzas</title>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap");
@@ -202,7 +197,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div id="dispDetalle3" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
         </div>
         <div id="sello" onclick="recargarLimpio()" style="font-size:9px;color:#6b7fa0;opacity:.5;text-align:center;margin-top:12px;cursor:pointer"></div>
-        <div id="sello" onclick="recargarLimpio()" style="font-size:9px;color:#6b7fa0;opacity:.5;text-align:center;margin-top:12px;cursor:pointer"></div>
       </div>
       <!-- Gráfico 1: Ingresos vs Gastos -->
       <div class="chart-card">
@@ -311,9 +305,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
-// Sello de la copia publicada. Si el de la app no coincide con el del
-// repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-11 23:38';
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
 const VERSION='2026-09-11 23:38';
@@ -978,15 +969,6 @@ function mesDelIngreso(i){
 }
 function quincenaDe(i){
   return diaDelIngreso(i)>15?'fin':'quince';
-}
-// Recarga saltando el caché: agrega un parámetro que el navegador no tiene
-// guardado, así se ve obligado a pedir el archivo de nuevo.
-function recargarLimpio(){
-  try{
-    const u=new URL(location.href);
-    u.searchParams.set('v',Date.now());
-    location.replace(u.toString());
-  }catch(e){location.reload();}
 }
 // Recarga saltando el caché: agrega un parámetro que el navegador no tiene
 // guardado, así se ve obligado a pedir el archivo de nuevo.
@@ -1918,8 +1900,6 @@ function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un n
 
 // INIT
 aplicarTema(PERFIL.tema);
-const sel=el('sello');
-if(sel)sel.textContent='v '+VERSION+' · tocá para actualizar';
 const sel=el('sello');
 if(sel)sel.textContent='v '+VERSION+' · tocá para actualizar';
 if(!PERFIL.adelanto){
