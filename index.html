@@ -702,6 +702,11 @@ let dispDatos={mes:null,sueldo1:0,aPagar:[],invMes:0,adelanto:0,master:0};
 const conSigno=n=>(n<0?'−':'')+fmtS(Math.abs(n));
 // Tildar un gasto lo descuenta del disponible: el número de arriba es la
 // plata que te queda hoy, no la que te va a quedar al final del mes.
+// La fila de una tarjeta se despliega para ver qué la compone.
+function verDetalle(id){
+  const d=el(id);if(!d)return;
+  d.style.display=d.style.display==='none'?'block':'none';
+}
 // Desde la lista se salta al resumen de esa tarjeta.
 function irATarjeta(t){
   curCard=t;
@@ -735,12 +740,22 @@ function pintarDisponible(){
     const caja=ok?'background:var(--acc);border-color:var(--acc);color:#04140d'
               :'background:transparent;border-color:rgba(255,255,255,.2);color:transparent';
     const sub=i.sub?`<div style="font-size:10px;color:#6b7fa0;font-weight:600;margin-top:1px">${i.sub}</div>`:'';
-    const accion=i.editar?`onclick="event.stopPropagation();${i.editar}" style="flex:1;cursor:pointer"`:'style="flex:1"';
+    const idDet='det_'+String(i.clave).replace(/[^a-zA-Z0-9]/g,'_');
+    const accion=i.detalle?`onclick="event.stopPropagation();verDetalle('${idDet}')" style="flex:1;cursor:pointer"`
+      :(i.editar?`onclick="event.stopPropagation();${i.editar}" style="flex:1;cursor:pointer"`:'style="flex:1"');
     return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">`
       +`<div onclick="event.stopPropagation();togglePago('${i.clave}')" style="flex-shrink:0;width:21px;height:21px;border-radius:6px;border:1.5px solid;${caja};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">${tilde}</div>`
       +`<div ${accion}><div style="font-size:13px;font-weight:600;color:${colorTexto};${ok?'text-decoration:line-through':''}">${i.icono} ${i.nombre}</div>${sub}</div>`
       +`<div style="font-size:13px;font-weight:800;color:${colorMonto}">${fmtS(i.monto)}</div>`
-      +`</div>`;  }).join('');
+      +`</div>`
+      +(i.detalle&&i.detalle.length
+        ?`<div id="${idDet}" style="display:none;margin:0 0 6px 30px;padding-left:10px;border-left:2px solid rgba(255,255,255,.08)">`
+          +i.detalle.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0">`
+            +`<div style="font-size:12px;color:#6b7fa0">${x.desc}<div style="font-size:10px;opacity:.75">${x.sub}</div></div>`
+            +`<div style="font-size:12px;font-weight:700;color:#6b7fa0;white-space:nowrap">${fmtS(x.monto)}</div></div>`).join('')
+          +`<div onclick="event.stopPropagation();irATarjeta('${i.nombre}')" style="font-size:11px;font-weight:700;color:var(--acc);cursor:pointer;padding:6px 0">Ver el resumen completo →</div>`
+          +`</div>`
+        :'');  }).join('');
   // Los gastos fijos que se repiten y todavía no se cargaron este mes
   const pendientes=(S.fijos||[]).filter(p=>!d.aPagar.some(i=>i.fijoId===p.id)).map(p=>
     `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);opacity:.6">`
@@ -882,7 +897,7 @@ function renderHome(){
       sub:'Cuota '+currentCuota(d,thisMonth)+'/'+d.total,
       editar:`editItem('debts',${d.id})`});
   });
-  const porTarjeta={};
+  const porTarjeta={},detalleTarjeta={};
   S.expenses.filter(e=>{
     if(e.ref)return false;
     if(PERFIL.adelanto&&e.pay===PERFIL.master)return false;
@@ -891,20 +906,27 @@ function renderHome(){
   }).forEach(e=>{
     const monto=(e.cur==='USD'?e.amt*rate:e.amt);
     const esTarjeta=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
-    if(esTarjeta){porTarjeta[e.pay]=(porTarjeta[e.pay]||0)+monto;return;}
+    if(esTarjeta){
+      porTarjeta[e.pay]=(porTarjeta[e.pay]||0)+monto;
+      (detalleTarjeta[e.pay]=detalleTarjeta[e.pay]||[]).push({desc:e.desc,monto,
+        sub:fmtFecha(e.date)+(e.cuotaTotal>1?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:'')});
+      return;
+    }
     aPagar.push({clave:'gasto_'+e.id,nombre:e.desc,monto,icono:e.emoji||cat(e.cat).i,
       sub:(e.pay||'')+(e.date?' · '+fmtFecha(e.date):'')
         +(e.cuotaTotal>1?' · Cuota '+e.cuotaNum+'/'+e.cuotaTotal:''),fijoId:e.fijoId||null,
       editar:`editFijoMes(${e.id})`});
   });
   (S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master)&&debitoCorreEn(d,thisMonth)).forEach(d=>{
-    porTarjeta[d.card]=(porTarjeta[d.card]||0)+(d.cur==='USD'?d.amt*rate:d.amt);
+    const m=(d.cur==='USD'?d.amt*rate:d.amt);
+    porTarjeta[d.card]=(porTarjeta[d.card]||0)+m;
+    (detalleTarjeta[d.card]=detalleTarjeta[d.card]||[]).push({desc:d.desc,monto:m,sub:'Débito automático'});
   });
   Object.keys(porTarjeta).forEach(t=>{
     const f=fechasResumen(t,thisMonth);
     aPagar.push({clave:'card_'+t,nombre:t,monto:porTarjeta[t],icono:'💳',
       sub:f?`Cerró el ${fmtFecha(localDateISO(f.cierre))} · vence el ${fmtFecha(localDateISO(f.vto))}`:'Resumen de la tarjeta',
-      editar:`irATarjeta('${t}')`});
+      detalle:(detalleTarjeta[t]||[]).sort((a,b)=>b.monto-a.monto)});
   });
   dispDatos={
     mes:thisMonth,
