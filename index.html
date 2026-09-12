@@ -1183,7 +1183,9 @@ function renderGraficos(){
   Chart.defaults.color='#4e5d78';Chart.defaults.font={family:"'Inter',sans-serif",size:11};
   el('monthSelector').innerHTML=months.map(m=>`<div class="mpill${m===curChartMonth?' active':''}" onclick="setChartMonth('${m}')">${monthName(m)}</div>`).join('');
   const nachInc=months.map(m=>S.ingresos.filter(i=>itemMonthKey(i)===m&&i.quien==='yo').reduce((a,i)=>a+i.amt,0));
-  const nachExp=months.map(m=>S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===m&&e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0));
+  // Un gasto cuenta en el mes en que se paga: los de tarjeta, en el de su
+  // resumen; el resto, en el de su fecha. isCurrentBillingPeriod resuelve ambos.
+  const nachExp=months.map(m=>S.expenses.filter(e=>!e.ref&&isCurrentBillingPeriod(e,m)&&e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0));
   if(barChartInst){barChartInst.destroy();barChartInst=null;}
   // Custom scrollable bar chart with Y scale
   const datasets=[
@@ -1228,7 +1230,7 @@ function renderGraficos(){
   // El reparto por categoría suma todo lo que se paga en el mes, no solo los
   // gastos cargados a mano: las cuotas de deuda y los débitos automáticos
   // también salen de tu bolsillo todos los meses.
-  const itemsMes=S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===curChartMonth)
+  const itemsMes=S.expenses.filter(e=>!e.ref&&isCurrentBillingPeriod(e,curChartMonth))
     .map(e=>({desc:e.desc,cat:e.cat,pay:e.pay,cur:e.cur,amt:e.amt}));
   S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).forEach(d=>{
     itemsMes.push({
