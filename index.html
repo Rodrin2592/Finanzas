@@ -99,10 +99,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 .legend-dot{width:10px;height:10px;border-radius:4px;flex-shrink:0;}
 .legend-name{color:var(--mu);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
 .legend-val{font-weight:800;font-size:11px;}
-.month-selector{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;}
-.month-selector::-webkit-scrollbar{display:none;}
-.mpill{padding:7px 13px;border-radius:11px;font-size:12px;font-weight:700;border:1px solid var(--br);cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--mu);flex-shrink:0;transition:all .2s;}
-.mpill.active{background:var(--acc);color:#060910;border-color:var(--acc);box-shadow:0 0 16px var(--glow);}
 .bot-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(11,15,26,.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--br);display:flex;padding:8px 0 calc(env(safe-area-inset-bottom,0px)+8px);z-index:50;}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:none;background:none;color:var(--mu);cursor:pointer;font-size:9px;font-family:inherit;padding:2px 0;transition:all .2s;min-height:44px;justify-content:center;font-weight:700;letter-spacing:.3px;}
 .nb.active{color:var(--acc);}
@@ -218,7 +214,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
       <div class="chart-card">
         <div class="chart-title">Gastos por categoría</div>
         <div class="chart-sub" id="pieSubtitle">Mes seleccionado</div>
-        <div class="month-selector" id="monthSelector" style="margin-top:8px"></div>
         <div class="pie-wrap"><canvas id="pieChart"></canvas></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;margin-bottom:6px">
           <div style="font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Categorías</div>
@@ -629,6 +624,7 @@ function dashNavMonth(dir){
     if(!monthHasData(newKey))return;
   }
   dashSelectedMonth=newKey;
+  curChartMonth=newKey;
   renderHome();
 }
 
@@ -1225,10 +1221,12 @@ function renderGraficos(){
   const months=getYear2026();
   const subEl=el('barChartSub');
   if(subEl)subEl.textContent=`Ene — Dic 2026 · ${PERFIL.nombre}`;
-  if(!curChartMonth||!months.includes(curChartMonth))curChartMonth=new Date().toISOString().slice(0,7);
+  // Un solo mes manda en toda la pantalla: el que elegís arriba con las
+  // flechas. Antes el gráfico tenía su propio selector y podían quedar
+  // desfasados, mostrando categorías de un mes y disponible de otro.
+  curChartMonth=dashSelectedMonth;
   if(!months.includes(curChartMonth))curChartMonth=months[months.length-1];
   Chart.defaults.color='#4e5d78';Chart.defaults.font={family:"'Inter',sans-serif",size:11};
-  el('monthSelector').innerHTML=months.map(m=>`<div class="mpill${m===curChartMonth?' active':''}" onclick="setChartMonth('${m}')">${monthName(m)}</div>`).join('');
   const nachInc=months.map(m=>S.ingresos.filter(i=>itemMonthKey(i)===m&&i.quien==='yo').reduce((a,i)=>a+i.amt,0));
   // Un gasto cuenta en el mes en que se paga: los de tarjeta, en el de su
   // resumen; el resto, en el de su fecha. isCurrentBillingPeriod resuelve ambos.
@@ -1297,7 +1295,7 @@ function renderGraficos(){
   const pieColors=pieLabels.map(l=>ECATS.find(c=>c.n===l)?.c||'#4e5d78');
   const panel=el('pieCatDetail');if(panel){panel.style.display='none';panel.innerHTML='';}
   if(pieChartInst)pieChartInst.destroy();
-  el('pieSubtitle').textContent=monthName(curChartMonth)+' 2026';
+  el('pieSubtitle').textContent=monthName(curChartMonth)+' '+curChartMonth.slice(0,4)+' · lo que se paga este mes';
   if(!pieLabels.length){el('pieChart').style.display='none';el('pieLegend').innerHTML='<div class="empty">Sin gastos este mes</div>';pieChartInst=null;return;}
   el('pieChart').style.display='';
   pieChartInst=new Chart(el('pieChart').getContext('2d'),{type:'doughnut',data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderColor:'#0d1117',borderWidth:2,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false},tooltip:{enabled:false}},onClick:(evt,elements)=>{
@@ -1623,7 +1621,6 @@ function togglePieSort(){
   if(btn)btn.textContent=pieSortDesc?'↓ Mayor a menor':'↑ Menor a mayor';
   renderGraficos();
 }
-function setChartMonth(m){curChartMonth=m;renderGraficos();}
 function delItem(col,id){if(!confirm('¿Eliminar?'))return;S[col]=S[col].filter(i=>i.id!==id);save();renderAll();if(curPage==='graficos')renderGraficos();}
 function payDbt(id){const d=S.debts.find(x=>x.id===id);if(d&&d.paid<d.total){d.paid++;save();renderDeudas();renderHero();}}
 function addToSav(id){const sv=S.savings.find(x=>x.id===id);if(!sv)return;const a=parseFloat(prompt('Cuánto agregar ('+(sv.cur==='USD'?'USD':'$')+')? '));if(!isNaN(a)&&a>0){sv.curr+=a;save();renderDeudas();renderHero();}}
