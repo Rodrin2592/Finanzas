@@ -141,11 +141,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 .act-btn:active{opacity:.7;}
 .act-btn.g{background:var(--acc-dim);border-color:var(--acc-20);color:var(--acc);}
 .cfg-btn{font-size:12px;color:var(--mu);background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:7px 13px;cursor:pointer;font-family:inherit;font-weight:700;}
-.dash-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;margin-top:4px;}
-.dash-stat{background:linear-gradient(135deg,var(--s1) 0%,var(--s2) 100%);border-radius:var(--radius);padding:18px;border:1px solid var(--br);box-shadow:0 6px 24px rgba(0,0,0,.3);transition:transform .15s,box-shadow .15s;}
-.dash-stat:active{transform:scale(.97);}
-.dash-stat-lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;font-weight:700;}
-.dash-stat-val{font-size:24px;font-weight:900;letter-spacing:-.6px;}
 </style>
 </head>
 <body>
@@ -176,7 +171,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
         <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
             <div id="dispTitulo1" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px">💰 Sueldo hasta el 15</div>
-            <div id="dispSueldo1" style="font-size:17px;font-weight:800;color:var(--tx)">$0</div>
+            <div id="dispSueldo1" onclick="abrirIngresos('fin')" style="font-size:17px;font-weight:800;color:var(--acc);cursor:pointer;border-bottom:1px dashed var(--acc-20)">$0</div>
           </div>
           <div id="dispGastos"></div>
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
@@ -201,22 +196,6 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div id="dispDetalle3" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
         </div>
       </div>
-      <div class="dash-stats">
-        <div class="dash-stat" onclick="showDashDetail('ingresos')" style="cursor:pointer">
-          <div class="dash-stat-lbl">💰 Ingresos del mes</div>
-          <div class="dash-stat-val" id="dashIngresos" style="color:var(--acc)">$0</div>
-          <div style="font-size:10px;color:var(--mu);margin-top:4px;font-weight:600">Sueldos + Inversiones + Reintegros</div>
-          <div style="font-size:11px;color:var(--mu);margin-top:6px;font-weight:600">Ver detalle →</div>
-        </div>
-        <div class="dash-stat" onclick="showDashDetail('gastos')" style="cursor:pointer">
-          <div class="dash-stat-lbl">💸 Gastos del mes</div>
-          <div class="dash-stat-val" id="dashGastos" style="color:var(--red)">$0</div>
-          <div style="font-size:10px;color:var(--mu);margin-top:4px;font-weight:600">Gastos + Deudas</div>
-          <div style="font-size:11px;color:var(--mu);margin-top:6px;font-weight:600">Ver detalle →</div>
-        </div>
-      </div>
-      <!-- Detalle expandible -->
-      <div id="dashDetail" style="display:none;margin-bottom:14px"></div>
       <!-- Gráfico 1: Ingresos vs Gastos -->
       <div class="chart-card">
         <div class="chart-title">Ingresos vs Gastos</div>
@@ -682,6 +661,12 @@ let dispDatos={mes:null,sueldo1:0,aPagar:[],invMes:0,adelanto:0,master:0};
 const conSigno=n=>(n<0?'−':'')+fmtS(Math.abs(n));
 // Tildar un gasto lo descuenta del disponible: el número de arriba es la
 // plata que te queda hoy, no la que te va a quedar al final del mes.
+// Desde la lista se salta al resumen de esa tarjeta.
+function irATarjeta(t){
+  curCard=t;
+  const btn=document.querySelectorAll('.nb')[1];
+  goPage('gastos',btn);
+}
 function togglePago(clave){
   const m=dispDatos.mes;if(!m)return;
   if(!S._payStatus)S._payStatus={};
@@ -708,17 +693,26 @@ function pintarDisponible(){
     const colorMonto=ok?'#6b7fa0':'var(--red)';
     const caja=ok?'background:var(--acc);border-color:var(--acc);color:#04140d'
               :'background:transparent;border-color:rgba(255,255,255,.2);color:transparent';
-    return `<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">`
-      +`<div onclick="event.stopPropagation();togglePago('${i.clave}')" style="flex-shrink:0;width:19px;height:19px;border-radius:6px;border:1.5px solid;${caja};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">${tilde}</div>`
-      +`<div style="flex:1;font-size:13px;font-weight:600;color:${colorTexto};${ok?'text-decoration:line-through':''}">${i.icono} ${i.nombre}</div>`
+    const sub=i.sub?`<div style="font-size:10px;color:#6b7fa0;font-weight:600;margin-top:1px">${i.sub}</div>`:'';
+    const accion=i.editar?`onclick="event.stopPropagation();${i.editar}" style="flex:1;cursor:pointer"`:'style="flex:1"';
+    return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">`
+      +`<div onclick="event.stopPropagation();togglePago('${i.clave}')" style="flex-shrink:0;width:21px;height:21px;border-radius:6px;border:1.5px solid;${caja};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">${tilde}</div>`
+      +`<div ${accion}><div style="font-size:13px;font-weight:600;color:${colorTexto};${ok?'text-decoration:line-through':''}">${i.icono} ${i.nombre}</div>${sub}</div>`
       +`<div style="font-size:13px;font-weight:800;color:${colorMonto}">${fmtS(i.monto)}</div>`
-      +`</div>`;
-  }).join('');
+      +`</div>`;  }).join('');
+  // Los gastos fijos que se repiten y todavía no se cargaron este mes
+  const pendientes=(S.fijos||[]).filter(p=>!d.aPagar.some(i=>i.fijoId===p.id)).map(p=>
+    `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);opacity:.6">`
+    +`<div style="flex-shrink:0;width:21px;height:21px"></div>`
+    +`<div style="flex:1;font-size:13px;font-weight:600;color:#6b7fa0">${p.emoji||'🧾'} ${p.desc}<div style="font-size:10px">sin cargar este mes</div></div>`
+    +`<button onclick="event.stopPropagation();cargarFijoDelMes(${p.id},'${d.mes}')" style="background:var(--acc-dim);border:1px solid var(--acc-20);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--acc);cursor:pointer">+ Cargar</button>`
+    +`</div>`).join('');
   const lista=el('dispGastos');
   if(lista){
-    lista.innerHTML=filas||'<div style="font-size:11px;color:#6b7fa0;padding:6px 0">Sin gastos a pagar este mes</div>';
+    const vacio='<div style="font-size:11px;color:#6b7fa0;padding:6px 0">Sin gastos a pagar este mes</div>';
+    lista.innerHTML=(filas+pendientes||vacio)
+      +`<button onclick="event.stopPropagation();nuevoFijo('${d.mes}')" style="width:100%;margin-top:10px;background:transparent;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:9px;font-size:12px;font-weight:700;color:#6b7fa0;cursor:pointer">＋ Agregar gasto</button>`;
   }
-
   // Quincena 1: lo que te queda hoy, y con cuánto vas a terminar
   const quedaHoy=d.sueldo1-pagado;
   const alPagarTodo=d.sueldo1-total-d.invMes;
@@ -730,8 +724,15 @@ function pintarDisponible(){
   // Quincena 2: el adelanto del 15 contra la MASTERCARD
   const queda2=d.adelanto-d.master;
   const det2=el('dispDetalle2');
-  if(det2)det2.textContent=`Sueldo del 15 ${fmtS(d.adelanto)} − ${PERFIL.master} ${fmtS(d.master)}`;
-  const v2=el('dispVal2');
+  if(det2){
+    const filaSueldo=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0">`
+      +`<div style="font-size:13px;font-weight:600;color:var(--tx)">💰 Sueldo del 15</div>`
+      +`<div onclick="abrirIngresos('quince')" style="font-size:14px;font-weight:800;color:var(--acc);cursor:pointer;border-bottom:1px dashed var(--acc-20)">${fmtS(d.adelanto)}</div></div>`;
+    const filaMaster=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-top:1px solid rgba(255,255,255,.05)">`
+      +`<div onclick="irATarjeta('${PERFIL.master}')" style="font-size:13px;font-weight:600;color:var(--tx);cursor:pointer">💳 ${PERFIL.master}<div style="font-size:10px;color:#6b7fa0;font-weight:600">Total del resumen</div></div>`
+      +`<div style="font-size:14px;font-weight:800;color:var(--red)">${fmtS(d.master)}</div></div>`;
+    det2.innerHTML=filaSueldo+filaMaster;
+  }  const v2=el('dispVal2');
   if(v2){v2.textContent=conSigno(queda2);v2.style.color=queda2<0?'var(--red)':'var(--acc)';}
 
   // Total: las dos quincenas juntas
@@ -834,7 +835,9 @@ function renderHome(){
   const aPagar=[];
   S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).forEach(d=>{
     aPagar.push({clave:'deuda_'+d.id,nombre:d.type+(d.desc?' · '+d.desc:''),
-      monto:(d.cur==='USD'?d.quota*rate:d.quota),icono:'📋'});
+      monto:(d.cur==='USD'?d.quota*rate:d.quota),icono:'📋',
+      sub:'Cuota '+currentCuota(d,thisMonth)+'/'+d.total,
+      editar:`editItem('debts',${d.id})`});
   });
   const porTarjeta={};
   S.expenses.filter(e=>{
@@ -846,12 +849,16 @@ function renderHome(){
     const monto=(e.cur==='USD'?e.amt*rate:e.amt);
     const esTarjeta=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
     if(esTarjeta){porTarjeta[e.pay]=(porTarjeta[e.pay]||0)+monto;return;}
-    aPagar.push({clave:'gasto_'+e.id,nombre:e.desc,monto,icono:e.emoji||cat(e.cat).i});
+    aPagar.push({clave:'gasto_'+e.id,nombre:e.desc,monto,icono:e.emoji||cat(e.cat).i,
+      sub:(e.pay||'')+(e.date?' · '+fmtFecha(e.date):''),fijoId:e.fijoId||null,
+      editar:`editFijoMes(${e.id})`});
   });
   (S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master)).forEach(d=>{
     porTarjeta[d.card]=(porTarjeta[d.card]||0)+(d.cur==='USD'?d.amt*rate:d.amt);
   });
-  Object.keys(porTarjeta).forEach(t=>aPagar.push({clave:'card_'+t,nombre:t,monto:porTarjeta[t],icono:'💳'}));
+  Object.keys(porTarjeta).forEach(t=>aPagar.push({
+    clave:'card_'+t,nombre:t,monto:porTarjeta[t],icono:'💳',
+    sub:'Resumen de la tarjeta',editar:`irATarjeta('${t}')`}));
   dispDatos={
     mes:thisMonth,
     sueldo1:totalIngresos,
@@ -861,148 +868,46 @@ function renderHome(){
     master:PERFIL.adelanto?totalMC:0,
   };
   pintarDisponible();
-  // El recuadro de arriba muestra TODO lo que entró en el mes,
-  // incluido el adelanto del 15, que no suma al disponible de fin de mes.
-  el('dashIngresos').textContent=fmtS(totalIngresos+(PERFIL.adelanto?ingAdelanto:0));
-  el('dashGastos').textContent=fmtS(totalGastos+invMes);
-  el('dashDetail').style.display='none';
-  dashDetailOpen=null;
   setTimeout(renderGraficos,100);
 }
 
-let dashDetailOpen=null;
-let _dashDetailLastClick=0;
-window.showDashDetail=function(tipo){
-  const now=Date.now();
-  if(now-_dashDetailLastClick<400)return;
-  _dashDetailLastClick=now;
-  const d=el('dashDetail');
-  const t=calcTotals();
-  const thisMonth=dashSelectedMonth;
-  const [_dy,_dm]=thisMonth.split('-').map(Number);
-  if(dashDetailOpen===tipo){d.style.display='none';dashDetailOpen=null;return;}
-  dashDetailOpen=tipo;d.style.display='block';
-  if(!S._payStatus)S._payStatus={};
-  if(!S._payStatus[thisMonth])S._payStatus[thisMonth]={};
-  const statusKey=thisMonth;
-  const rate=t.rate;
-
-  const payBtn=(key)=>{
-    const isPaid=S._payStatus[statusKey][key]||false;
-    return `<button onclick="event.stopPropagation();togglePayStatus('${statusKey}','${key}',this)" style="background:${isPaid?'var(--acc-dim)':'var(--gld-dim)'};border:1px solid ${isPaid?'var(--acc-20)':'rgba(255,184,48,.2)'};border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;color:${isPaid?'var(--acc)':'var(--gld)'};cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">${isPaid?'✓ Abonado':'⏳ Pendiente'}</button>`;
-  };
-
-  if(tipo==='ingresos'){
-    const items=S.ingresos.filter(i=>itemMonthKey(i)===thisMonth);
-    const nach=items.filter(i=>i.quien==='yo');
-    const otros=items.filter(i=>i.quien!=='yo');
-    const intereses=S.investments.filter(i=>i.rend).reduce((a,i)=>{const r=i.rend/100/12;const val=i.cur==='USD'?i.amt*rate:i.amt;return a+val*r;},0);
-    const refs=S.expenses.filter(e=>e.ref&&(itemMonthKey(e)===thisMonth));
-    const row=i=>`<div class="tx-item"><div class="tx-ico" style="background:var(--acc-dim)">💼</div><div class="tx-body"><div class="tx-name">${i.desc}</div><div class="tx-sub">${i.tipo||'Ingreso'}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(i.amt)}</div>${actBtns('ingresos',i.id)}</div></div>`;
-    d.innerHTML=`<div class="card" onclick="event.stopPropagation()">
-      <div class="subsec">${PERFIL.emoji} ${PERFIL.nombre}<span class="subsec-r">${fmtS(nach.reduce((a,i)=>a+i.amt,0))}</span></div>${nach.length?nach.map(row).join(''):'<div class="empty" style="padding:8px 0">Sin ingresos</div>'}
-      ${otros.length?`<div class="subsec" style="margin-top:10px">📌 Otros<span class="subsec-r">${fmtS(otros.reduce((a,i)=>a+i.amt,0))}</span></div>${otros.map(row).join('')}`:''}
-      ${intereses>0?`<div class="subsec" style="margin-top:10px">📈 Intereses<span class="subsec-r">${fmtS(intereses)}</span></div>`:''}
-      ${refs.length?`<div class="subsec" style="margin-top:10px">🔄 Reintegros<span class="subsec-r">${fmtS(refs.reduce((a,e)=>a+(e.refAmt||e.amt),0))}</span></div>`:''}
-      <button onclick="event.stopPropagation();nuevoIngreso()" style="width:100%;margin-top:12px;background:var(--acc-dim);border:1px solid rgba(0,240,168,.25);border-radius:12px;padding:11px;font-size:13px;font-weight:800;color:var(--acc);cursor:pointer">＋ Agregar ingreso</button>
-    </div>`;
-
-  } else {
-    // Gastos detail: tarjetas por período de cierre, efectivo solo del mes vivido
-    const items=S.expenses.filter(e=>{
-      if(e.ref)return false;
-      if(PERFIL.adelanto&&e.pay===PERFIL.master)return false; // la paga el adelanto del 15
-      const isCard=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
-      if(isCard) return isCurrentBillingPeriod(e,thisMonth);
-      return itemMonthKey(e)===thisMonth;
-    });
-    const nachGasTotal=items.filter(e=>e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-
-    // Person cards - same logic as old toggleDisponibleDetail
-    const nachIng2=S.ingresos.filter(i=>(itemMonthKey(i)===thisMonth)&&i.quien==='yo').reduce((a,i)=>a+i.amt,0);
-    const nachRef2=S.expenses.filter(e=>e.ref&&(itemMonthKey(e)===thisMonth)&&e.quien==='yo').reduce((a,e)=>a+(e.refAmt||e.amt),0);
-    const nachDisp2=nachIng2+nachRef2-nachGasTotal;
-    const statRow2=(lbl,val,col)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span style="font-size:13px;color:#6b7fa0">${lbl}</span><span style="font-size:13px;font-weight:800;color:${col}">${val}</span></div>`;
-    const personCard2=(emoji,name,ing,gas,ref,disp,col)=>`<div style="background:var(--s2);border-radius:16px;padding:14px;border:1px solid rgba(255,255,255,.07);margin-bottom:10px">
-      <div style="font-size:12px;font-weight:800;color:${col};margin-bottom:8px">${emoji} ${name}</div>
-      ${statRow2('💰 Ingresos',fmtS(ing),'var(--acc)')}
-      ${statRow2('💸 Gastos',fmtS(gas),'var(--red)')}
-      ${ref>0?statRow2('🔄 Reintegros','+'+fmtS(ref),'var(--acc)'):''}
-      <div style="display:flex;justify-content:space-between;padding-top:10px"><span style="font-size:13px;font-weight:700;color:#6b7fa0">Disponible</span><span style="font-size:16px;font-weight:900;color:${disp<0?'var(--red)':col}">${disp<0?'−':''}${fmtS(Math.abs(disp))}</span></div>
-    </div>`;
-    // Deudas y débitos con botón individual
-    const allDeudas=S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1));
-    const sharedExpenses=S.expenses.filter(e=>e.shared&&!e.ref&&(itemMonthKey(e)===thisMonth));
-    let deudasHtml='';
-    {
-      deudasHtml=`<div style="background:var(--s2);border-radius:16px;padding:14px;border:1px solid rgba(255,255,255,.07);margin-bottom:10px"><div style="font-size:12px;font-weight:800;color:var(--gld);margin-bottom:8px">👥 Compromisos compartidos</div>`;
-      allDeudas.forEach(dd=>{
-        const key='deuda_'+dd.id;const isPaid=S._payStatus[statusKey][key]||false;const amt=dd.cur==='USD'?fmtU(dd.quota):fmtS(dd.quota);
-        deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div><div style="font-size:13px;font-weight:600;color:#6b7fa0">📋 ${dd.type}${dd.desc?' · '+dd.desc:''}</div><div style="font-size:10px;color:#6b7fa0">Cuota ${currentCuota(dd,thisMonth)}/${dd.total}</div></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:800;color:var(--gld)">${amt}</span>${payBtn(key)}</div></div>`;
-      });
-      sharedExpenses.forEach(e=>{
-        const key='shared_'+e.id;const isPaid=S._payStatus[statusKey][key]||false;const amt=e.cur==='USD'?fmtU(e.amt):fmtS(e.amt);
-        deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div><div style="font-size:13px;font-weight:600;color:#6b7fa0">💼 ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.cat} · ${e.pay}</div></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:800;color:var(--red)">-${amt}</span>${payBtn(key)}</div></div>`;
-      });
-      // ── Gastos fijos del mes (Edenor, lancha, préstamos…) ──
-      const fijosDelMes=S.expenses.filter(e=>e.fijo&&!e.ref&&itemMonthKey(e)===thisMonth);
-      // Los que vienen de una plantilla (Edenor, lancha…) van arriba;
-      // los sueltos (efectivo del día a día) van en su propio grupo abajo.
-      const fijosMes=fijosDelMes.filter(e=>e.fijoId);
-      const otrosMes=fijosDelMes.filter(e=>!e.fijoId);
-      const fijosPend=(S.fijos||[]).filter(p=>!fijosMes.some(e=>e.fijoId===p.id));
-      deudasHtml+=`<div style="font-size:12px;font-weight:800;color:var(--blu);margin:14px 0 6px">🧾 Gastos fijos</div>`;
-      const filaFijo=(e)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)"><div style="flex:1;cursor:pointer" onclick="event.stopPropagation();editFijoMes(${e.id})"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${e.emoji||cat(e.cat).i} ${e.desc}</div><div style="font-size:10px;color:#6b7fa0">${e.pay||'—'}</div></div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;font-weight:800;color:var(--gld)">${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div>${payBtn('fijo_'+e.id)}</div></div>`;
-      fijosMes.forEach(e=>{deudasHtml+=filaFijo(e);});
-      fijosPend.forEach(p=>{
-        deudasHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);opacity:.6"><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#6b7fa0">${p.emoji||'🧾'} ${p.desc}</div><div style="font-size:10px;color:#6b7fa0">sin cargar este mes</div></div><div style="display:flex;align-items:center;gap:6px"><button onclick="event.stopPropagation();cargarFijoDelMes(${p.id},'${thisMonth}')" style="background:var(--blu-dim);border:1px solid rgba(77,166,255,.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blu);cursor:pointer">+ Cargar</button><button onclick="event.stopPropagation();delFijoPlantilla(${p.id})" style="background:none;border:none;color:#6b7fa0;font-size:14px;cursor:pointer;padding:0 2px" title="Dejar de repetir">✕</button></div></div>`;
-      });
-      if(!fijosMes.length&&!fijosPend.length)deudasHtml+=`<div style="font-size:11px;color:#6b7fa0;padding:6px 0">Todavía no cargaste ninguno</div>`;
-      deudasHtml+=`<button onclick="event.stopPropagation();nuevoFijo('${thisMonth}')" style="width:100%;margin-top:10px;background:transparent;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:8px;font-size:12px;font-weight:700;color:#6b7fa0;cursor:pointer">+ Agregar gasto fijo</button>`;
-      if(otrosMes.length){
-        const totOtros=otrosMes.reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0);
-        deudasHtml+=`<div style="font-size:12px;font-weight:800;color:var(--pur);margin:14px 0 6px;display:flex;justify-content:space-between">💵 Otros gastos (sin tarjeta)<span style="color:#6b7fa0;font-weight:700">${fmtS(totOtros)}</span></div>`;
-        otrosMes.forEach(e=>{deudasHtml+=filaFijo(e);});
-      }
-      deudasHtml+='</div>';
-    }
-
-    let html=`<div class="card" onclick="event.stopPropagation()">`;
-    // Person breakdown at top
-    html+=personCard2(PERFIL.emoji,PERFIL.nombre,nachIng2,nachGasTotal,nachRef2,nachDisp2,'var(--acc)');
-    // Compromisos compartidos
-    html+=deudasHtml;
-    // Inversiones del período (sin rendimiento = compra de dólares, acciones, etc.)
-    const invItems=S.investments.filter(i=>{
-      if(i.rend)return false;
-      if(!i.date)return false;
-      const mk=i.date.slice(0,7);
-      return mk===thisMonth; // solo el mes que vivís
-    });
-    if(invItems.length){
-      const invTotal=invItems.reduce((a,i)=>a+(i.cur==='USD'?i.amt*rate:i.amt),0);
-      html+=`<div class="subsec" style="align-items:center;cursor:pointer" onclick="const _id=document.getElementById('inv_collapse');_id.style.display=_id.style.display==='none'?'block':'none'">▶ 💵 Inversiones<span class="subsec-r">${fmtS(invTotal)}</span></div>`;
-      html+=`<div id="inv_collapse" style="display:none">`;
-      invItems.forEach(inv=>{
-        const amt=inv.cur==='USD'?fmtU(inv.amt)+' (≈'+fmtS(inv.amt*rate)+')':fmtS(inv.amt);
-        html+=`<div class="tx-item"><div class="tx-ico" style="background:var(--blu-dim)">💵</div><div class="tx-body"><div class="tx-name">${inv.name}</div><div class="tx-sub">${inv.type}${inv.date?' · '+inv.date:''}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--blu)">-${amt}</div></div></div>`;
-      });
-      html+=`</div>`;
-    }
-
-    html+='</div>';
-    d.innerHTML=html;
-  }
-}
 // ── GASTOS FIJOS ─────────────────────────────────────────────────────
 // Una plantilla (Edenor, lancha, préstamo) se repite todos los meses. Al
 // cargarla se crea un gasto normal con fijo:true, así sigue contando en los
 // totales, los gráficos y el detalle por método de pago como cualquier otro.
 var fijoMesDestino='';
-function nuevoIngreso(){
+// Los ingresos se cargan desde el sueldo de cada quincena. `fecha` deja el
+// formulario con un día que cae en la quincena correcta.
+function nuevoIngreso(fecha){
   editingId=null;editingType=null;
   el('shTitle').textContent='Nuevo ingreso';
-  el('shBody').innerHTML=forms.ingreso(null);
+  el('shBody').innerHTML=forms.ingreso(fecha?{date:fecha}:null);
+  el('overlay').classList.add('open');
+}
+// Quincena de un ingreso: hasta el 15 es el adelanto, después el sueldo.
+function quincenaDe(i){
+  if(!PERFIL.adelanto)return 'fin';
+  const ds=i.date||'';
+  const day=parseInt(ds.includes('/')?ds.split('/')[0]:ds.split('-')[2])||1;
+  return day>15?'fin':'quince';
+}
+function abrirIngresos(quincena){
+  const mes=dispDatos.mes||localMonthKey(new Date());
+  const lista=S.ingresos.filter(i=>itemMonthKey(i)===mes&&quincenaDe(i)===quincena);
+  const esQuince=quincena==='quince';
+  // Día por defecto: el 15 para el adelanto, el último del mes para el sueldo.
+  const [y,m]=mes.split('-').map(Number);
+  const ultimo=new Date(y,m,0).getDate();
+  const fecha=mes+'-'+String(esQuince?15:ultimo).padStart(2,'0');
+  const titulo=esQuince?'Sueldo del 15':(PERFIL.adelanto?'Sueldo hasta el 15':'Sueldo del mes');
+  el('shTitle').textContent=titulo;
+  const filas=lista.length?lista.map(i=>`<div class="tx-item"><div class="tx-ico" style="background:var(--acc-dim)">💼</div>`
+    +`<div class="tx-body"><div class="tx-name">${i.desc}</div><div class="tx-sub">${(i.tipo||'Ingreso')} · ${fmtFecha(i.date)}</div></div>`
+    +`<div class="tx-right"><div class="tx-amt" style="color:var(--acc)">+${fmtS(i.amt)}</div>${actBtns('ingresos',i.id)}</div></div>`).join('')
+    :`<div class="empty" style="padding:10px 0">Todavía no cargaste nada en esta quincena</div>`;
+  el('shBody').innerHTML=filas
+    +`<button class="sh-btn" onclick="nuevoIngreso('${fecha}')">＋ Agregar ingreso</button>`
+    +backBtn;
   el('overlay').classList.add('open');
 }
 function nuevoFijo(mes){
@@ -1051,19 +956,6 @@ function delFijoPlantilla(id){
   S.fijos=(S.fijos||[]).filter(x=>x.id!==id);save();renderAll();
 }
 
-function togglePayStatus(monthKey,payMethod,btn){
-  if(!S._payStatus)S._payStatus={};
-  if(!S._payStatus[monthKey])S._payStatus[monthKey]={};
-  S._payStatus[monthKey][payMethod]=!S._payStatus[monthKey][payMethod];
-  const isPaid=S._payStatus[monthKey][payMethod];
-  btn.textContent=isPaid?'✓ Abonado':'⏳ Pendiente';
-  btn.style.color=isPaid?'var(--acc)':'var(--gld)';
-  btn.style.background=isPaid?'var(--acc-dim)':'var(--gld-dim)';
-  btn.style.borderColor=isPaid?'var(--acc-20)':'rgba(255,184,48,.2)';
-  save();
-  // Update disponible transitorio live
-  renderHome();
-}
 
 function renderGastos(){
   const container=el('gastosTabContent');
