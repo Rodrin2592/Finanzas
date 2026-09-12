@@ -172,15 +172,34 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           </div>
           <button onclick="dashNavMonth(1)" id="dashNavNext" style="background:rgba(255,255,255,.06);border:none;border-radius:10px;width:36px;height:36px;color:#edf2ff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">›</button>
         </div>
-        <!-- Un disponible a la vez, elegido con las solapas -->
-        <div class="tabs" id="dispTabs" style="margin-bottom:12px">
-          <div class="tab" onclick="dispTab('hasta',this)">Hasta el 15</div>
-          <div class="tab" onclick="dispTab('desde',this)">Desde el 15</div>
-          <div class="tab active" onclick="dispTab('completo',this)">Completo</div>
+        <!-- Quincena 1: el sueldo de fin de mes y lo que se paga con él -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <div id="dispTitulo1" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px">💰 Sueldo hasta el 15</div>
+            <div id="dispSueldo1" style="font-size:17px;font-weight:800;color:var(--tx)">$0</div>
+          </div>
+          <div id="dispGastos"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+            <div style="font-size:11px;color:#6b7fa0;font-weight:700">Te queda disponible</div>
+            <div id="dashDisponible" style="font-size:26px;font-weight:900;letter-spacing:-1px">$0</div>
+          </div>
+          <div id="dispAlPagar" style="font-size:11px;color:#6b7fa0;font-weight:600;text-align:right;margin-top:2px"></div>
         </div>
-        <div id="dispLabel" style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">💰 Disponible del mes completo</div>
-        <div id="dashDisponible" style="font-size:30px;font-weight:900;letter-spacing:-1px;margin-bottom:5px">$0</div>
-        <div id="dispDetalle" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
+        <!-- Quincena 2: el adelanto del 15 contra la MASTERCARD -->
+        <div id="dispBloque2" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
+          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🌓 Desde el 15</div>
+          <div id="dispDetalle2" style="font-size:12px;color:#6b7fa0;font-weight:600;margin-bottom:8px"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="font-size:11px;color:#6b7fa0;font-weight:700">Te queda disponible</div>
+            <div id="dispVal2" style="font-size:22px;font-weight:900;letter-spacing:-1px">$0</div>
+          </div>
+        </div>
+        <!-- Las dos quincenas juntas -->
+        <div id="dispBloque3">
+          <div style="font-size:10px;color:#6b7fa0;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">💰 Total disponible del mes</div>
+          <div id="dispVal3" style="font-size:28px;font-weight:900;letter-spacing:-1px;margin-bottom:4px">$0</div>
+          <div id="dispDetalle3" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
+        </div>
       </div>
       <div class="dash-stats">
         <div class="dash-stat" onclick="showDashDetail('ingresos')" style="cursor:pointer">
@@ -658,33 +677,73 @@ function currentCuota(d, refMonth){
   return Math.max(1, Math.min(paid+diff, d.total||999));
 }
 
-// Disponible: tres números, uno visible a la vez.
-let curDispTab='completo';
-let dispValores={hasta:0,desde:0,completo:0};
+// Disponible: las dos quincenas y el total, en una sola vista.
+let dispDatos={mes:null,sueldo1:0,aPagar:[],invMes:0,adelanto:0,master:0};
 const conSigno=n=>(n<0?'−':'')+fmtS(Math.abs(n));
-function dispTab(t,btn){
-  curDispTab=t;
-  document.querySelectorAll('#dispTabs .tab').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  pintarDisponible();
+// Tildar un gasto lo descuenta del disponible: el número de arriba es la
+// plata que te queda hoy, no la que te va a quedar al final del mes.
+function togglePago(clave){
+  const m=dispDatos.mes;if(!m)return;
+  if(!S._payStatus)S._payStatus={};
+  if(!S._payStatus[m])S._payStatus[m]={};
+  S._payStatus[m][clave]=!S._payStatus[m][clave];
+  save();pintarDisponible();
+}
+function estaPago(clave){
+  const m=dispDatos.mes;
+  return !!(m&&S._payStatus&&S._payStatus[m]&&S._payStatus[m][clave]);
 }
 function pintarDisponible(){
-  // Sin adelanto hay un solo disponible: no hay solapas ni desglose.
-  const tab=PERFIL.adelanto?curDispTab:'hasta';
-  const titulos={
-    hasta:PERFIL.adelanto?'🌕 Disponible hasta 15 del mes':'🌕 Disponible del mes',
-    desde:'🌓 Disponible a partir del 15 del mes',
-    completo:'💰 Disponible del mes completo',
-  };
-  const val=dispValores[tab]||0;
-  const lbl=el('dispLabel');if(lbl)lbl.textContent=titulos[tab];
+  const d=dispDatos;
+  const t1=el('dispTitulo1');
+  if(t1)t1.textContent=PERFIL.adelanto?'💰 Sueldo hasta el 15':'💰 Sueldo del mes';
+  const s1=el('dispSueldo1');if(s1)s1.textContent=fmtS(d.sueldo1);
+
+  let pagado=0,total=0;
+  const filas=d.aPagar.map(i=>{
+    const ok=estaPago(i.clave);
+    total+=i.monto; if(ok)pagado+=i.monto;
+    const tilde=ok?'✓':'';
+    const colorTexto=ok?'#6b7fa0':'var(--tx)';
+    const colorMonto=ok?'#6b7fa0':'var(--red)';
+    const caja=ok?'background:var(--acc);border-color:var(--acc);color:#04140d'
+              :'background:transparent;border-color:rgba(255,255,255,.2);color:transparent';
+    return `<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">`
+      +`<div onclick="event.stopPropagation();togglePago('${i.clave}')" style="flex-shrink:0;width:19px;height:19px;border-radius:6px;border:1.5px solid;${caja};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">${tilde}</div>`
+      +`<div style="flex:1;font-size:13px;font-weight:600;color:${colorTexto};${ok?'text-decoration:line-through':''}">${i.icono} ${i.nombre}</div>`
+      +`<div style="font-size:13px;font-weight:800;color:${colorMonto}">${fmtS(i.monto)}</div>`
+      +`</div>`;
+  }).join('');
+  const lista=el('dispGastos');
+  if(lista){
+    lista.innerHTML=filas||'<div style="font-size:11px;color:#6b7fa0;padding:6px 0">Sin gastos a pagar este mes</div>';
+  }
+
+  // Quincena 1: lo que te queda hoy, y con cuánto vas a terminar
+  const quedaHoy=d.sueldo1-pagado;
+  const alPagarTodo=d.sueldo1-total-d.invMes;
   const num=el('dashDisponible');
-  if(num){num.textContent=conSigno(val);num.style.color=val<0?'var(--red)':'var(--acc)';}
-  const det=el('dispDetalle');
-  if(det){
-    det.textContent=(PERFIL.adelanto&&tab==='completo')
-      ?`Hasta el 15 ${conSigno(dispValores.hasta)} · Desde el 15 ${conSigno(dispValores.desde)}`
-      :'';
+  if(num){num.textContent=conSigno(quedaHoy);num.style.color=quedaHoy<0?'var(--red)':'var(--acc)';}
+  const ap=el('dispAlPagar');
+  if(ap)ap.textContent=`Al pagar todo te queda ${conSigno(alPagarTodo)}`;
+
+  // Quincena 2: el adelanto del 15 contra la MASTERCARD
+  const queda2=d.adelanto-d.master;
+  const det2=el('dispDetalle2');
+  if(det2)det2.textContent=`Sueldo del 15 ${fmtS(d.adelanto)} − ${PERFIL.master} ${fmtS(d.master)}`;
+  const v2=el('dispVal2');
+  if(v2){v2.textContent=conSigno(queda2);v2.style.color=queda2<0?'var(--red)':'var(--acc)';}
+
+  // Total: las dos quincenas juntas
+  const totalHoy=quedaHoy+(PERFIL.adelanto?queda2:0);
+  const totalFinal=alPagarTodo+(PERFIL.adelanto?queda2:0);
+  const v3=el('dispVal3');
+  if(v3){v3.textContent=conSigno(totalHoy);v3.style.color=totalHoy<0?'var(--red)':'var(--acc)';}
+  const det3=el('dispDetalle3');
+  if(det3){
+    det3.textContent=PERFIL.adelanto
+      ?`Hasta el 15 ${conSigno(quedaHoy)} · Desde el 15 ${conSigno(queda2)} · Al pagar todo ${conSigno(totalFinal)}`
+      :`Al pagar todo ${conSigno(totalFinal)}`;
   }
 }
 function renderHome(){
@@ -770,11 +829,36 @@ function renderHome(){
   if(!S._payStatus)S._payStatus={};
   if(!S._payStatus[thisMonth])S._payStatus[thisMonth]={};
 
-  // Se guardan los tres y se dibuja el de la solapa elegida.
-  dispValores={
-    hasta:dispFin,
-    desde:PERFIL.adelanto?saldoMitad:0,
-    completo:dispFin+(PERFIL.adelanto?saldoMitad:0),
+  // Lo que hay que pagar con el sueldo de fin de mes, agrupado como se paga:
+  // las tarjetas por resumen y el resto uno por uno.
+  const aPagar=[];
+  S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).forEach(d=>{
+    aPagar.push({clave:'deuda_'+d.id,nombre:d.type+(d.desc?' · '+d.desc:''),
+      monto:(d.cur==='USD'?d.quota*rate:d.quota),icono:'📋'});
+  });
+  const porTarjeta={};
+  S.expenses.filter(e=>{
+    if(e.ref)return false;
+    if(PERFIL.adelanto&&e.pay===PERFIL.master)return false;
+    const esTarjeta=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
+    return esTarjeta?isCurrentBillingPeriod(e,thisMonth):itemMonthKey(e)===thisMonth;
+  }).forEach(e=>{
+    const monto=(e.cur==='USD'?e.amt*rate:e.amt);
+    const esTarjeta=e.pay&&(e.pay.includes('VISA')||e.pay.includes('MASTERCARD'));
+    if(esTarjeta){porTarjeta[e.pay]=(porTarjeta[e.pay]||0)+monto;return;}
+    aPagar.push({clave:'gasto_'+e.id,nombre:e.desc,monto,icono:e.emoji||cat(e.cat).i});
+  });
+  (S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master)).forEach(d=>{
+    porTarjeta[d.card]=(porTarjeta[d.card]||0)+(d.cur==='USD'?d.amt*rate:d.amt);
+  });
+  Object.keys(porTarjeta).forEach(t=>aPagar.push({clave:'card_'+t,nombre:t,monto:porTarjeta[t],icono:'💳'}));
+  dispDatos={
+    mes:thisMonth,
+    sueldo1:totalIngresos,
+    aPagar,
+    invMes,
+    adelanto:PERFIL.adelanto?ingAdelanto:0,
+    master:PERFIL.adelanto?totalMC:0,
   };
   pintarDisponible();
   // El recuadro de arriba muestra TODO lo que entró en el mes,
@@ -1798,8 +1882,10 @@ function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un n
 
 // INIT
 aplicarTema(PERFIL.tema);
-const solapasDisp=el('dispTabs');
-if(solapasDisp&&!PERFIL.adelanto)solapasDisp.style.display='none';
+if(!PERFIL.adelanto){
+  const b2=el('dispBloque2');if(b2)b2.style.display='none';
+  const b3=el('dispBloque3');if(b3)b3.style.display='none';
+}
 const chipPerfil=el('perfilChip');
 if(chipPerfil){
   // Con link directo no se ofrece cambiar de perfil
