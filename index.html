@@ -443,6 +443,13 @@ const CARD_TIPOS=['Gasto único','Cuota','Débito automático'];
 const ITYPES_ARS=['Plazo Fijo','Fondo Común (FCI)','Acciones / Cedears','Cripto (ARS)','Bonos','Otro'];
 const ITYPES_USD=['Dólares Físicos','Cripto (USD)','Acciones Ext.','CEDEAR (USD)','Otro'];
 const DTYPES=['Préstamo Personal','Cuota Auto','Cuota Departamento','Alquiler','Lancha','Tarjetas','Auto','Deuda USD','Deuda no en curso','Otro'];
+// Las deudas no llevan categoría propia: se deduce del tipo para que entren
+// en el reparto por categoría junto con el resto de los gastos.
+const CAT_DEUDA={
+  'Préstamo Personal':'Otro','Cuota Auto':'Auto','Cuota Departamento':'Hogar',
+  'Alquiler':'Hogar','Lancha':'Lancha','Tarjetas':'Tarjetas','Auto':'Auto',
+  'Deuda USD':'Otro','Otro':'Otro',
+};
 
 const DEF={settings:{usdRate:1000,usdBuy:1000,usdSell:1000},expenses:[],ingresos:[],investments:[],debts:[],savings:[],debitos:[],fijos:[],saldoHistorial:{},cardCfg:{[PERFIL.visa]:{cierre:'',vto:''},[PERFIL.master]:{cierre:'',vto:''}}};
 let S = JSON.parse(JSON.stringify(DEF));
@@ -1218,8 +1225,25 @@ function renderGraficos(){
   }
   // Legend
   el('barLegend').innerHTML=datasets.map(ds=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#edf2ff"><div style="width:12px;height:12px;border-radius:4px;background:${ds.color}"></div>${ds.label}</div>`).join('');
-  const monthGastos=S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===curChartMonth);
-  const catMap={};monthGastos.forEach(e=>{const amt=e.cur==='USD'?e.amt*rate:e.amt;catMap[e.cat]=(catMap[e.cat]||0)+amt;});
+  // El reparto por categoría suma todo lo que se paga en el mes, no solo los
+  // gastos cargados a mano: las cuotas de deuda y los débitos automáticos
+  // también salen de tu bolsillo todos los meses.
+  const itemsMes=S.expenses.filter(e=>!e.ref&&itemMonthKey(e)===curChartMonth)
+    .map(e=>({desc:e.desc,cat:e.cat,pay:e.pay,cur:e.cur,amt:e.amt}));
+  S.debts.filter(d=>d.quota&&d.type!=='Deuda no en curso'&&(d.paid||0)<(d.total||1)).forEach(d=>{
+    itemsMes.push({
+      desc:d.type+(d.desc?' · '+d.desc:''),
+      cat:d.cat||CAT_DEUDA[d.type]||'Otro',
+      pay:'Cuota '+currentCuota(d,curChartMonth)+'/'+d.total,
+      cur:d.cur,amt:d.quota});
+  });
+  (S.debitos||[]).filter(d=>debitoCorreEn(d,curChartMonth)).forEach(d=>{
+    itemsMes.push({
+      desc:d.desc,cat:d.cat||'Otro',
+      pay:d.card+' · débito automático',
+      cur:d.cur,amt:d.amt});
+  });
+  const catMap={};itemsMes.forEach(e=>{const amt=e.cur==='USD'?e.amt*rate:e.amt;catMap[e.cat]=(catMap[e.cat]||0)+amt;});
   const pieLabels=Object.keys(catMap);const pieData=Object.values(catMap);
   const pieColors=pieLabels.map(l=>ECATS.find(c=>c.n===l)?.c||'#4e5d78');
   const panel=el('pieCatDetail');if(panel){panel.style.display='none';panel.innerHTML='';}
@@ -1232,7 +1256,7 @@ function renderGraficos(){
     const i=elements[0].index;
     const label=pieLabels[i];const val=pieData[i];const total=pieData.reduce((a,b)=>a+b,0);const pct=Math.round(val/total*100);
     // show items for this category
-    const items=monthGastos.filter(e=>e.cat===label);
+    const items=itemsMes.filter(e=>e.cat===label);
     const panel=el('pieCatDetail');
     if(panel){
       panel.innerHTML=`<div class="card" style="margin-top:10px;border-color:${pieColors[i]}44"><div class="subsec" style="color:${pieColors[i]}">${label}<span class="subsec-r">${fmtS(val)} · ${pct}%</span></div>${items.map(e=>`<div class="tx-item"><div class="tx-ico" style="background:${ECATS.find(c=>c.n===e.cat)?.bg||'#333'}">${ECATS.find(c=>c.n===e.cat)?.i||'📦'}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.pay}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div></div></div>`).join('')}</div>`;
