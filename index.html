@@ -6,6 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mis Finanzas">
+<!-- La app es un solo archivo que cambia seguido: que el navegador
+     revalide en vez de servir una copia vieja de la pantalla de inicio. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Mis Finanzas</title>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap");
@@ -191,6 +196,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
           <div id="dispVal3" style="font-size:28px;font-weight:900;letter-spacing:-1px;margin-bottom:4px">$0</div>
           <div id="dispDetalle3" style="font-size:11px;color:#6b7fa0;font-weight:600"></div>
         </div>
+        <div id="sello" onclick="recargarLimpio()" style="font-size:9px;color:#6b7fa0;opacity:.5;text-align:center;margin-top:12px;cursor:pointer"></div>
       </div>
       <!-- Gráfico 1: Ingresos vs Gastos -->
       <div class="chart-card">
@@ -299,6 +305,9 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
+// Sello de la copia publicada. Si el de la app no coincide con el del
+// repositorio, estás viendo una versión vieja guardada por el navegador.
+const VERSION='2026-09-11 23:31';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -957,6 +966,15 @@ function quincenaDe(i){
   const ds=i.date||'';
   const day=parseInt(ds.includes('/')?ds.split('/')[0]:ds.split('-')[2])||1;
   return day>15?'fin':'quince';
+}
+// Recarga saltando el caché: agrega un parámetro que el navegador no tiene
+// guardado, así se ve obligado a pedir el archivo de nuevo.
+function recargarLimpio(){
+  try{
+    const u=new URL(location.href);
+    u.searchParams.set('v',Date.now());
+    location.replace(u.toString());
+  }catch(e){location.reload();}
 }
 function abrirIngresos(quincena){
   const mes=dispDatos.mes||localMonthKey(new Date());
@@ -1875,6 +1893,8 @@ function saveAhorro(){const name=v('fname');if(!name)return alert('Escribí un n
 
 // INIT
 aplicarTema(PERFIL.tema);
+const sel=el('sello');
+if(sel)sel.textContent='v '+VERSION+' · tocá para actualizar';
 if(!PERFIL.adelanto){
   const b2=el('dispBloque2');if(b2)b2.style.display='none';
   const b3=el('dispBloque3');if(b3)b3.style.display='none';
