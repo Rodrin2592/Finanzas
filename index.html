@@ -429,7 +429,9 @@ const ECATS=[
   {n:'Otro',i:'📦',c:'#556080',bg:'rgba(85,96,128,.13)'},
 ];
 const INGRESO_TIPOS=['Sueldo','Freelance','Bono','Alquiler cobrado','Venta','Otro ingreso'];
-const PAYS=['Efectivo','Débito',PERFIL.visa,PERFIL.master,'Transferencia','Mercado Pago'];
+// 'Cuotas' es para los préstamos y la cuota del departamento: no son un medio
+// de pago propiamente dicho, pero es como los pensás al cargarlos.
+const PAYS=['Efectivo','Débito',PERFIL.visa,PERFIL.master,'Transferencia','Mercado Pago','Cuotas'];
 const CARDS=[PERFIL.visa,PERFIL.master];
 // El primero es el que queda seleccionado al abrir el formulario: con
 // 'Débito automático' adelante, los campos de cuota nunca se veían y los
