@@ -651,6 +651,26 @@ function mesDeResumen(pay,fecha){
   const corrimiento=(d.getDate()>cierreDay?1:0)+((vtoDay&&vtoDay<cierreDay)?1:0);
   return localMonthKey(new Date(d.getFullYear(),d.getMonth()+corrimiento,1));
 }
+// Cierre y vencimiento del resumen que se paga en un mes dado. Sirve para
+// decir cuál es: dos meses seguidos muestran "VISA" y son resúmenes distintos.
+function fechasResumen(pay,mes){
+  const cfg=S.cardCfg&&S.cardCfg[pay];
+  if(!cfg||!mes)return null;
+  const diaDe=v=>v&&String(v).includes('-')?new Date(v+'T12:00:00').getDate():(parseInt(v)||0);
+  const cierreDay=diaDe(cfg.cierre),vtoDay=diaDe(cfg.vto);
+  if(!cierreDay||!vtoDay)return null;
+  const [y,m]=mes.split('-').map(Number);
+  // El día se recorta al último que tenga ese mes (un cierre 31 en febrero)
+  const enMes=(anio,mesIdx,dia)=>{
+    const ultimo=new Date(anio,mesIdx+1,0).getDate();
+    return new Date(anio,mesIdx,Math.min(dia,ultimo));
+  };
+  // El vencimiento cae en el mes en que se paga. Si es anterior al día de
+  // cierre, ese resumen cerró el mes pasado.
+  const vto=enMes(y,m-1,vtoDay);
+  const cierre=enMes(y,m-1-(vtoDay>cierreDay?0:1),cierreDay);
+  return {cierre,vto};
+}
 // Un débito automático se cobra todos los meses, pero recién desde el resumen
 // en el que se dio de alta: antes de esa fecha todavía no existía.
 function debitoCorreEn(deb,mes){
@@ -746,11 +766,13 @@ function pintarDisponible(){
   const queda2=d.adelanto-d.master;
   const det2=el('dispDetalle2');
   if(det2){
+    const fM=fechasResumen(PERFIL.master,d.mes);
+    const subMaster=fM?`Cerró el ${fmtFecha(localDateISO(fM.cierre))} · vence el ${fmtFecha(localDateISO(fM.vto))}`:'Total del resumen';
     const filaSueldo=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0">`
       +`<div style="font-size:13px;font-weight:600;color:var(--tx)">💰 Sueldo del 15</div>`
       +`<div onclick="abrirIngresos('quince')" style="font-size:14px;font-weight:800;color:var(--acc);cursor:pointer;border-bottom:1px dashed var(--acc-20)">${fmtS(d.adelanto)}</div></div>`;
     const filaMaster=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-top:1px solid rgba(255,255,255,.05)">`
-      +`<div onclick="irATarjeta('${PERFIL.master}')" style="font-size:13px;font-weight:600;color:var(--tx);cursor:pointer">💳 ${PERFIL.master}<div style="font-size:10px;color:#6b7fa0;font-weight:600">Total del resumen</div></div>`
+      +`<div onclick="irATarjeta('${PERFIL.master}')" style="font-size:13px;font-weight:600;color:var(--tx);cursor:pointer">💳 ${PERFIL.master}<div style="font-size:10px;color:#6b7fa0;font-weight:600">${subMaster}</div></div>`
       +`<div style="font-size:14px;font-weight:800;color:var(--red)">${fmtS(d.master)}</div></div>`;
     det2.innerHTML=filaSueldo+filaMaster;
   }  const v2=el('dispVal2');
@@ -878,9 +900,12 @@ function renderHome(){
   (S.debitos||[]).filter(d=>(!PERFIL.adelanto||d.card!==PERFIL.master)&&debitoCorreEn(d,thisMonth)).forEach(d=>{
     porTarjeta[d.card]=(porTarjeta[d.card]||0)+(d.cur==='USD'?d.amt*rate:d.amt);
   });
-  Object.keys(porTarjeta).forEach(t=>aPagar.push({
-    clave:'card_'+t,nombre:t,monto:porTarjeta[t],icono:'💳',
-    sub:'Resumen de la tarjeta',editar:`irATarjeta('${t}')`}));
+  Object.keys(porTarjeta).forEach(t=>{
+    const f=fechasResumen(t,thisMonth);
+    aPagar.push({clave:'card_'+t,nombre:t,monto:porTarjeta[t],icono:'💳',
+      sub:f?`Cerró el ${fmtFecha(localDateISO(f.cierre))} · vence el ${fmtFecha(localDateISO(f.vto))}`:'Resumen de la tarjeta',
+      editar:`irATarjeta('${t}')`});
+  });
   dispDatos={
     mes:thisMonth,
     sueldo1:totalIngresos,
