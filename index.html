@@ -307,7 +307,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-11 23:54';
+const VERSION='2026-09-13 13:31';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -1270,7 +1270,10 @@ function renderGraficos(){
   curChartMonth=dashSelectedMonth;
   if(!months.includes(curChartMonth))curChartMonth=months[months.length-1];
   Chart.defaults.color='#4e5d78';Chart.defaults.font={family:"'Inter',sans-serif",size:11};
-  const nachInc=months.map(m=>S.ingresos.filter(i=>itemMonthKey(i)===m&&i.quien==='yo').reduce((a,i)=>a+i.amt,0));
+  // Los ingresos van al mes que les corresponde, no al de su fecha: el sueldo
+  // cobrado a fin de mes es el del mes siguiente. Los gastos ya usaban su
+  // propia regla; a los ingresos les faltaba la suya.
+  const nachInc=months.map(m=>S.ingresos.filter(i=>mesDelIngreso(i)===m).reduce((a,i)=>a+i.amt,0));
   // Un gasto cuenta en el mes en que se paga: los de tarjeta, en el de su
   // resumen; el resto, en el de su fecha. isCurrentBillingPeriod resuelve ambos.
   const nachExp=months.map(m=>S.expenses.filter(e=>!e.ref&&isCurrentBillingPeriod(e,m)&&e.quien==='yo').reduce((a,e)=>a+(e.cur==='USD'?e.amt*rate:e.amt),0));
