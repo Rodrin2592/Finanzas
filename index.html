@@ -163,7 +163,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <button onclick="dashNavMonth(-1)" style="background:rgba(255,255,255,.06);border:none;border-radius:10px;width:36px;height:36px;color:#edf2ff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
           <div style="text-align:center">
-            <div style="font-size:10px;color:#6b7fa0;text-transform:uppercase;letter-spacing:1.2px;font-weight:700">💼 Disponible del mes</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:7px"><div style="font-size:10px;color:#6b7fa0;text-transform:uppercase;letter-spacing:1.2px;font-weight:700">💼 Disponible del mes</div><button id="btnOcultar" onclick="toggleOcultar()" title="Ocultar montos" aria-label="Ocultar montos" style="background:none;border:none;padding:2px;margin:0;color:#6b7fa0;cursor:pointer;display:flex;align-items:center;line-height:0"></button></div>
             <div id="dashMonthLabel" style="font-size:15px;font-weight:800;margin-top:3px;color:#edf2ff"></div>
           </div>
           <button onclick="dashNavMonth(1)" id="dashNavNext" style="background:rgba(255,255,255,.06);border:none;border-radius:10px;width:36px;height:36px;color:#edf2ff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">›</button>
@@ -307,7 +307,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-13 13:45';
+const VERSION='2026-09-14 19:27';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -705,6 +705,20 @@ function currentCuota(d, refMonth){
 }
 
 // Disponible: las dos quincenas y el total, en una sola vista.
+// Como cualquier billetera, los montos se pueden tapar con el ojo. Es una
+// preferencia de este teléfono, no un dato de las finanzas: va al
+// localStorage y no se sincroniza ni viaja al otro perfil.
+const OCULTAR_KEY='mf_ocultar_'+PERFIL.id;
+let montosOcultos=(function(){try{return localStorage.getItem(OCULTAR_KEY)==='1';}catch(e){return false;}})();
+const OJO_ABIERTO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const OJO_TAPADO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function toggleOcultar(){
+  montosOcultos=!montosOcultos;
+  try{localStorage.setItem(OCULTAR_KEY,montosOcultos?'1':'0');}catch(e){}
+  pintarDisponible();
+}
+// Tapado siempre muestra lo mismo, no dice el signo ni el largo del número.
+const TAPA='$ ••••••';
 let dispDatos={mes:null,sueldo1:0,aPagar:[],invMes:0,adelanto:0,master:0};
 const conSigno=n=>(n<0?'−':'')+fmtS(Math.abs(n));
 // Tildar un gasto lo descuenta del disponible: el número de arriba es la
@@ -733,9 +747,15 @@ function estaPago(clave){
 }
 function pintarDisponible(){
   const d=dispDatos;
+  const ojo=el('btnOcultar');
+  if(ojo){
+    ojo.innerHTML=montosOcultos?OJO_TAPADO:OJO_ABIERTO;
+    ojo.title=montosOcultos?'Mostrar montos':'Ocultar montos';
+    ojo.setAttribute('aria-label',ojo.title);
+  }
   const t1=el('dispTitulo1');
   if(t1)t1.textContent=PERFIL.adelanto?'💰 Sueldo hasta el 15':'💰 Sueldo del mes';
-  const s1=el('dispSueldo1');if(s1)s1.textContent=fmtS(d.sueldo1);
+  const s1=el('dispSueldo1');if(s1)s1.textContent=montosOcultos?TAPA:fmtS(d.sueldo1);
 
   let pagado=0,total=0;
   const filas=d.aPagar.map(i=>{
@@ -780,9 +800,12 @@ function pintarDisponible(){
   const quedaHoy=d.sueldo1-pagado;
   const alPagarTodo=d.sueldo1-total-d.invMes;
   const num=el('dashDisponible');
-  if(num){num.textContent=conSigno(quedaHoy);num.style.color=quedaHoy<0?'var(--red)':'var(--acc)';}
+  if(num){
+    num.textContent=montosOcultos?TAPA:conSigno(quedaHoy);
+    num.style.color=montosOcultos?'#6b7fa0':(quedaHoy<0?'var(--red)':'var(--acc)');
+  }
   const ap=el('dispAlPagar');
-  if(ap)ap.textContent=`Al pagar todo te queda ${conSigno(alPagarTodo)}`;
+  if(ap)ap.textContent=montosOcultos?'':`Al pagar todo te queda ${conSigno(alPagarTodo)}`;
 
   // Quincena 2: el adelanto del 15 contra la MASTERCARD
   const queda2=d.adelanto-d.master;
@@ -792,24 +815,31 @@ function pintarDisponible(){
     const subMaster=fM?`Cerró el ${fmtFecha(localDateISO(fM.cierre))} · vence el ${fmtFecha(localDateISO(fM.vto))}`:'Total del resumen';
     const filaSueldo=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0">`
       +`<div style="font-size:13px;font-weight:600;color:var(--tx)">💰 Sueldo del 15</div>`
-      +`<div onclick="abrirIngresos('quince')" style="font-size:14px;font-weight:800;color:var(--acc);cursor:pointer;border-bottom:1px dashed var(--acc-20)">${fmtS(d.adelanto)}</div></div>`;
+      +`<div onclick="abrirIngresos('quince')" style="font-size:14px;font-weight:800;color:var(--acc);cursor:pointer;border-bottom:1px dashed var(--acc-20)">${montosOcultos?TAPA:fmtS(d.adelanto)}</div></div>`;
     const filaMaster=`<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-top:1px solid rgba(255,255,255,.05)">`
       +`<div onclick="irATarjeta('${PERFIL.master}')" style="font-size:13px;font-weight:600;color:var(--tx);cursor:pointer">💳 ${PERFIL.master}<div style="font-size:10px;color:#6b7fa0;font-weight:600">${subMaster}</div></div>`
       +`<div style="font-size:14px;font-weight:800;color:var(--red)">${fmtS(d.master)}</div></div>`;
     det2.innerHTML=filaSueldo+filaMaster;
   }  const v2=el('dispVal2');
-  if(v2){v2.textContent=conSigno(queda2);v2.style.color=queda2<0?'var(--red)':'var(--acc)';}
+  if(v2){
+    v2.textContent=montosOcultos?TAPA:conSigno(queda2);
+    v2.style.color=montosOcultos?'#6b7fa0':(queda2<0?'var(--red)':'var(--acc)');
+  }
 
   // Total: las dos quincenas juntas
   const totalHoy=quedaHoy+(PERFIL.adelanto?queda2:0);
   const totalFinal=alPagarTodo+(PERFIL.adelanto?queda2:0);
   const v3=el('dispVal3');
-  if(v3){v3.textContent=conSigno(totalHoy);v3.style.color=totalHoy<0?'var(--red)':'var(--acc)';}
+  if(v3){
+    v3.textContent=montosOcultos?TAPA:conSigno(totalHoy);
+    v3.style.color=montosOcultos?'#6b7fa0':(totalHoy<0?'var(--red)':'var(--acc)');
+  }
   const det3=el('dispDetalle3');
   if(det3){
-    det3.textContent=PERFIL.adelanto
+    det3.textContent=montosOcultos?'Tocá el ojo para ver los montos'
+      :(PERFIL.adelanto
       ?`Hasta el 15 ${conSigno(quedaHoy)} · Desde el 15 ${conSigno(queda2)} · Al pagar todo ${conSigno(totalFinal)}`
-      :`Al pagar todo ${conSigno(totalFinal)}`;
+      :`Al pagar todo ${conSigno(totalFinal)}`);
   }
 }
 function renderHome(){
