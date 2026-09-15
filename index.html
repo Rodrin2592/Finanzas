@@ -307,7 +307,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-14 21:16';
+const VERSION='2026-09-14 21:19';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -433,8 +433,20 @@ const ECATS=[
   {n:'Vacaciones',i:'✈️',c:'#f0f0f0',bg:'rgba(240,240,240,.10)'},
   {n:'Ropa',i:'👗',c:'#40e0d0',bg:'rgba(64,224,208,.13)'},
   {n:'Mascotas',i:'🐾',c:'#3b82f6',bg:'rgba(59,130,246,.13)'},
-  {n:'Otro',i:'📦',c:'#556080',bg:'rgba(85,96,128,.13)'},
+  {n:'Otro',i:'📦',c:'#000000',bg:'rgba(0,0,0,.45)'},
 ];
+// El fondo de la app es casi negro, asi que un color muy oscuro se pierde:
+// el gajo de la torta parece un agujero y el texto no se lee. El color
+// elegido se respeta siempre como relleno; lo que cambia es el contorno que
+// lo recorta y el color con el que se escribe encima.
+function esOscuro(c){
+  const h=String(c||'').replace('#','');
+  if(h.length!==6)return false;
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return (r*299+g*587+b*114)/1000<60;
+}
+const colorLegible=c=>esOscuro(c)?'#c9d4e8':c;
+const bordeDe=c=>esOscuro(c)?'rgba(255,255,255,.5)':'#0d1117';
 const INGRESO_TIPOS=['Sueldo','Freelance','Bono','Alquiler cobrado','Venta','Otro ingreso'];
 // 'Cuotas' es para los préstamos y la cuota del departamento: no son un medio
 // de pago propiamente dicho, pero es como los pensás al cargarlos.
@@ -1398,7 +1410,7 @@ function renderGraficos(){
   el('pieSubtitle').textContent=monthName(curChartMonth)+' '+curChartMonth.slice(0,4)+' · lo que se paga este mes';
   if(!pieLabels.length){el('pieChart').style.display='none';el('pieLegend').innerHTML='<div class="empty">Sin gastos este mes</div>';pieChartInst=null;return;}
   el('pieChart').style.display='';
-  pieChartInst=new Chart(el('pieChart').getContext('2d'),{type:'doughnut',data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderColor:'#0d1117',borderWidth:2,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false},tooltip:{enabled:false}},onClick:(evt,elements)=>{
+  pieChartInst=new Chart(el('pieChart').getContext('2d'),{type:'doughnut',data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderColor:pieColors.map(bordeDe),borderWidth:2,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false},tooltip:{enabled:false}},onClick:(evt,elements)=>{
     if(!elements.length)return;
     const i=elements[0].index;
     const label=pieLabels[i];const val=pieData[i];const total=pieData.reduce((a,b)=>a+b,0);const pct=Math.round(val/total*100);
@@ -1406,7 +1418,7 @@ function renderGraficos(){
     const items=itemsMes.filter(e=>e.cat===label);
     const panel=el('pieCatDetail');
     if(panel){
-      panel.innerHTML=`<div class="card" style="margin-top:10px;border-color:${pieColors[i]}44"><div class="subsec" style="color:${pieColors[i]}">${label}<span class="subsec-r">${fmtS(val)} · ${pct}%</span></div>${items.map(e=>`<div class="tx-item"><div class="tx-ico" style="background:${ECATS.find(c=>c.n===e.cat)?.bg||'#333'}">${ECATS.find(c=>c.n===e.cat)?.i||'📦'}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.pay}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div></div></div>`).join('')}</div>`;
+      panel.innerHTML=`<div class="card" style="margin-top:10px;border-color:${colorLegible(pieColors[i])}44"><div class="subsec" style="color:${colorLegible(pieColors[i])}">${label}<span class="subsec-r">${fmtS(val)} · ${pct}%</span></div>${items.map(e=>`<div class="tx-item"><div class="tx-ico" style="background:${ECATS.find(c=>c.n===e.cat)?.bg||'#333'}">${ECATS.find(c=>c.n===e.cat)?.i||'📦'}</div><div class="tx-body"><div class="tx-name">${e.desc}</div><div class="tx-sub">${e.pay}</div></div><div class="tx-right"><div class="tx-amt" style="color:var(--red)">-${e.cur==='USD'?fmtU(e.amt):fmtS(e.amt)}</div></div></div>`).join('')}</div>`;
       panel.style.display='block';
     }
   }}});
@@ -1414,7 +1426,7 @@ function renderGraficos(){
   // Build sorted legend
   var pieItems=pieLabels.map((l,i)=>({l,i,val:pieData[i],pct:Math.round(pieData[i]/total*100),col:pieColors[i]}));
   pieItems.sort((a,b)=>pieSortDesc?b.val-a.val:a.val-b.val);
-  el('pieLegend').innerHTML=pieItems.map(item=>`<div class="legend-item"><div class="legend-dot" style="background:${item.col}"></div><span class="legend-name">${item.l}</span><span class="legend-val">${item.pct}%</span></div>`).join('');
+  el('pieLegend').innerHTML=pieItems.map(item=>`<div class="legend-item"><div class="legend-dot" style="background:${item.col}${esOscuro(item.col)?';box-shadow:0 0 0 1px rgba(255,255,255,.5)':''}"></div><span class="legend-name">${item.l}</span><span class="legend-val">${item.pct}%</span></div>`).join('');
 }
 
 function renderAll(){renderHero();renderHome();renderGastos();renderInversiones();renderDeudas();}
@@ -1812,7 +1824,7 @@ function saveCardCfg(card){
   save();renderGastos();closeSheet();
 }
 
-function renderCatGrid(){const g=el('catGrid');if(!g)return;g.innerHTML=ECATS.map(c=>`<div onclick="pickCat('${c.n}')" style="padding:8px 3px;border-radius:12px;border:1px solid ${c.n===selCat2?c.c:'var(--br)'};background:${c.n===selCat2?c.bg:'var(--s2)'};text-align:center;cursor:pointer;font-size:11px;color:${c.n===selCat2?c.c:'var(--mu)'};transition:all .15s"><div style="font-size:20px;margin-bottom:3px">${c.i}</div>${c.n}</div>`).join('');}
+function renderCatGrid(){const g=el('catGrid');if(!g)return;g.innerHTML=ECATS.map(c=>`<div onclick="pickCat('${c.n}')" style="padding:8px 3px;border-radius:12px;border:1px solid ${c.n===selCat2?colorLegible(c.c):'var(--br)'};background:${c.n===selCat2?c.bg:'var(--s2)'};text-align:center;cursor:pointer;font-size:11px;color:${c.n===selCat2?colorLegible(c.c):'var(--mu)'};transition:all .15s"><div style="font-size:20px;margin-bottom:3px">${c.i}</div>${c.n}</div>`).join('');}
 function pickCat(n){selCat2=n;renderCatGrid();}
 function toggleRef(){isRef=!isRef;el('refToggle').classList.toggle('on',isRef);el('refBox').style.display=isRef?'block':'none';updateRefCalc();}
 function updateRefCalc(){const calc=el('refCalc');if(!calc||!isRef)return;const amt=vn('famt'),pct=vn('frefPct'),mx=vn('frefMax');calc.textContent=(amt&&pct)?'Reintegro: '+fmtS(Math.min(amt*pct/100,mx||Infinity)):'';}
