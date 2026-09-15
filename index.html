@@ -307,7 +307,7 @@ body{font-family:"Inter",-apple-system,sans-serif;color:var(--tx);font-size:15px
 // ── FIREBASE CONFIG ──────────────────────────────────────────────
 // Sello de la copia publicada. Si el de la app no coincide con el del
 // repositorio, estás viendo una versión vieja guardada por el navegador.
-const VERSION='2026-09-14 19:27';
+const VERSION='2026-09-14 21:16';
 // ── PERFILES ─────────────────────────────────────────────────────────
 // Un mismo código para las dos personas. Cada perfil escribe en su propio
 // nodo de la base, así los datos no se mezclan, y trae su nombre y sus
@@ -424,16 +424,14 @@ function setSyncBar(state, msg) {
 // ── DATA ─────────────────────────────────────────────────────────
 const ECATS=[
   {n:'Comida',i:'🍔',c:'#ff3333',bg:'rgba(255,51,51,.13)'},
-  {n:'Salud',i:'💊',c:'#ff8c00',bg:'rgba(255,140,0,.13)'},
+  {n:'Salud y cuidado personal',i:'💊',c:'#ff8c00',bg:'rgba(255,140,0,.13)'},
   {n:'Hogar',i:'🏠',c:'#22c55e',bg:'rgba(34,197,94,.13)'},
   {n:'Educación',i:'📚',c:'#7c3aed',bg:'rgba(124,58,237,.13)'},
-  {n:'Peluquería',i:'✂️',c:'#ff69b4',bg:'rgba(255,105,180,.13)'},
   {n:'Lancha',i:'⛵',c:'#ffe11a',bg:'rgba(255,225,26,.13)'},
   {n:'Tarjetas',i:'💳',c:'#ffd700',bg:'rgba(255,215,0,.13)'},
   {n:'Auto',i:'🚙',c:'#1e40af',bg:'rgba(30,64,175,.18)'},
   {n:'Vacaciones',i:'✈️',c:'#f0f0f0',bg:'rgba(240,240,240,.10)'},
   {n:'Ropa',i:'👗',c:'#40e0d0',bg:'rgba(64,224,208,.13)'},
-  {n:'Cuidado personal',i:'🧴',c:'#b07d4f',bg:'rgba(176,125,79,.13)'},
   {n:'Mascotas',i:'🐾',c:'#3b82f6',bg:'rgba(59,130,246,.13)'},
   {n:'Otro',i:'📦',c:'#556080',bg:'rgba(85,96,128,.13)'},
 ];
@@ -537,7 +535,7 @@ setInterval(async () => {
 const fmt=(n,d=0)=>Math.abs(Number(n)||0).toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtS=n=>'$'+fmt(n);
 const fmtU=n=>'U$D '+fmt(n,2);
-const cat=name=>ECATS.find(c=>c.n===name)||ECATS[7];
+const cat=name=>ECATS.find(c=>c.n===name)||ECATS.find(c=>c.n==='Otro');
 const el=id=>document.getElementById(id);
 const v=id=>el(id)?.value.trim()||'';
 const vn=id=>parseFloat(el(id)?.value)||0;
